@@ -1,3 +1,12 @@
+## [1.0.1](https://github.com/mantasu/outline-sections/compare/v1.0.0...v1.0.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* actions ([12d5f21](https://github.com/mantasu/outline-sections/commit/12d5f21266550eb64e2b67d11853cbbb36b08fc0))
+* actions ([bb382c0](https://github.com/mantasu/outline-sections/commit/bb382c092bb2dd44fc63786ba989e82f88684636))
+* tests ([b25f0ee](https://github.com/mantasu/outline-sections/commit/b25f0eed8768edfe54c5c8cc155eea5ec7e566d0))
+
 # 1.0.0 (2026-06-20)
 
 
