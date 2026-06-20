@@ -1,7 +1,7 @@
 # Outline Sections
 
-[![Test](https://github.com/mantasu/outline-sections/actions/workflows/test.yaml/badge.svg)](https://github.com/mantasu/outline-sections/actions/workflows/test.yaml)
-[![Coverage](https://codecov.io/gh/mantasu/outline-sections/graph/badge.svg)](https://codecov.io/gh/mantasu/outline-sections)
+[![test](https://github.com/mantasu/outline-sections/actions/workflows/test.yaml/badge.svg)](https://github.com/mantasu/outline-sections/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/github/mantasu/outline-sections/graph/badge.svg?token=I0D2Y2DUVC)](https://codecov.io/github/mantasu/outline-sections)
 
 A minimal VS Code extension that injects `#region` / `#endregion` blocks into the built-in **Outline** view as a collapsible tree.
 
