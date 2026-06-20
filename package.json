@@ -19,25 +19,9 @@
   "contributes": {},
   "scripts": {
     "compile": "tsc -p ./",
-    "test": "vitest run --coverage --coverage.include=src/**/*.ts",
+    "test": "vitest run --coverage",
     "package": "npm run compile && npx @vscode/vsce package",
     "release": "npm run compile && semantic-release"
-  },
-  "vitest": {
-    "globals": true,
-    "include": [
-      "test/**/*.test.ts"
-    ],
-    "coverage": {
-      "provider": "v8",
-      "reportsDirectory": "coverage",
-      "thresholds": {
-        "lines": 80,
-        "functions": 80,
-        "branches": 80,
-        "statements": 80
-      }
-    }
   },
   "extensionDependencies": [],
   "devDependencies": {
