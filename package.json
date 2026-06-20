@@ -3,7 +3,7 @@
   "type": "module",
   "displayName": "Outline Sections",
   "description": "Injects section markers into the VS Code Outline view",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "publisher": "mantasu",
   "repository": {
     "type": "git",
@@ -31,15 +31,18 @@
     "@semantic-release/changelog": "*",
     "@semantic-release/commit-analyzer": "*",
     "@semantic-release/git": "*",
-    "@semantic-release/github": "^10.0.0",
+    "@semantic-release/github": "*",
     "@semantic-release/npm": "*",
     "@semantic-release/release-notes-generator": "*",
-    "semantic-release": "^23.0.0",
+    "semantic-release": "*",
     "semantic-release-vsce": "*",
     "vitest": "*",
     "@vitest/coverage-v8": "*",
     "typescript": "*",
     "@types/node": "*",
     "@types/vscode": "*"
+  },
+  "overrides": {
+    "undici": "5.28.4"
   }
 }
