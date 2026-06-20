@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/mantasu/outline-sections/compare/v1.0.2...v1.0.3) (2026-06-20)
+
+
+### Bug Fixes
+
+* unidici ([9411758](https://github.com/mantasu/outline-sections/commit/9411758d634a7393ff9c28fe93d09bab86d54eac))
+
 ## [1.0.2](https://github.com/mantasu/outline-sections/compare/v1.0.1...v1.0.2) (2026-06-20)
 
 
