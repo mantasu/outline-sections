@@ -1,5 +1,6 @@
 {
   "name": "outline-sections",
+  "type": "module",
   "displayName": "Outline Sections",
   "description": "Injects section markers into the VS Code Outline view",
   "version": "1.0.0",
