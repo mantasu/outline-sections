@@ -1,0 +1,58 @@
+{
+  "name": "outline-sections",
+  "displayName": "Outline Sections",
+  "description": "Injects section markers into the VS Code Outline view",
+  "version": "0.0.0",
+  "publisher": "mantasu",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mantasu/outline-sections"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {},
+  "scripts": {
+    "compile": "tsc -p ./",
+    "test": "vitest run --coverage --coverage.include=src/**/*.ts",
+    "package": "npm run compile && npx @vscode/vsce package",
+    "release": "npm run compile && semantic-release"
+  },
+  "vitest": {
+    "globals": true,
+    "include": [
+      "test/**/*.test.ts"
+    ],
+    "coverage": {
+      "provider": "v8",
+      "reportsDirectory": "coverage",
+      "thresholds": {
+        "lines": 80,
+        "functions": 80,
+        "branches": 80,
+        "statements": 80
+      }
+    }
+  },
+  "extensionDependencies": [],
+  "devDependencies": {
+    "@semantic-release/changelog": "*",
+    "@semantic-release/commit-analyzer": "*",
+    "@semantic-release/git": "*",
+    "@semantic-release/github": "*",
+    "@semantic-release/npm": "*",
+    "@semantic-release/release-notes-generator": "*",
+    "semantic-release": "*",
+    "semantic-release-vsce": "*",
+    "vitest": "*",
+    "@vitest/coverage-v8": "*",
+    "typescript": "*",
+    "@types/node": "*",
+    "@types/vscode": "*"
+  }
+}

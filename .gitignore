@@ -1,0 +1,16 @@
+# Dependency and build
+node_modules/
+coverage/
+out/
+
+# Package
+*.vsix
+package-lock.json
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
