@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/mantasu/outline-sections/compare/v1.0.1...v1.0.2) (2026-06-20)
+
+
+### Bug Fixes
+
+* semantic release ([1ee71d0](https://github.com/mantasu/outline-sections/commit/1ee71d06941838c8f41ebf1dccb09b85fc2ed87c))
+
 ## [1.0.1](https://github.com/mantasu/outline-sections/compare/v1.0.0...v1.0.1) (2026-06-20)
 
 
