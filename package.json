@@ -2,7 +2,7 @@
   "name": "outline-sections",
   "displayName": "Outline Sections",
   "description": "Injects section markers into the VS Code Outline view",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "publisher": "mantasu",
   "repository": {
     "type": "git",
@@ -14,7 +14,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {},
   "scripts": {
