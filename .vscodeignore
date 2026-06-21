@@ -1,6 +1,6 @@
 **
-!assets/**
 !out/**
+!assets/icon.png
 !package.json
 !README.md
 !LICENSE

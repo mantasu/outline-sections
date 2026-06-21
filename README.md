@@ -2,8 +2,7 @@
 
 <div align="center">
 
-![banner](./assets/banner.gif)
-
+![banner](https://raw.githubusercontent.com/mantasu/outline-sections/main/assets/banner.gif)
 
 [![vscode](https://img.shields.io/badge/vscode-marketplace-blue?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAADv0lEQVR4nO2ZvWsUQRjGZ97VJogfaSSFQbC5bWyUYGMRsbWwsBObgIWFMWBmLid4gtGZBNTOzn9ABEHZGMzsLRo/Ck935hRUSBELQQIKIrkLEjMyG8479T5mde8L7oEpd+f57b4z88wMQn311VfH5FBxDKhY2sZfPXMfFA+jXhIQMQbUXwfqayctNty5ona94suUVzyFshpQNwuoGAcqNoz5cosAKu21ATmQ11tRd0ljTMRstXGoDRC11Nzqsuutjh+4pwc67RyhbLAFE3GrlnmoA/CrecWV1NzqBNIad8j8vQFMhFfPPDQDqIBk2m8+vbgLiHjSyDzYA3xsr/nMoyGgvmpmHmwB5oq6febP+/vMHG9jHloCYAYMD0cQC/fGNj8ZHAQiVmzNQ+IA194MYq4C4EoDU+uYyWl0+7Zj86gzKUaB+F/jmIdEAfibYeDybWS+qhkgNJ0famieiuNARCmWeSJKkM6dTgwAuFr803ylyU8Ok0dqPjeZOwPE/xHvy4t36LzYb55PDoDJz/UBNksKmLxYnVcgLWjcksFE3EF0YUf5HYkBYC4vNwQolxSTD9GVwm5MxPWY5tdMFvqzXzexMaA1xkxdsoEAJktwYTFOySwjIkZqdesmPY0Cl2eByx/NIZSG7HMNNNe4ZKh/F40HO+v157ZiIQMWngSmvlv9jct5Demg1lf/bsZIs77cVq3EDiscBS6/WUFcDTVkHlUDfEAkOGTTj9vSKMHDEeDyixWEadnnGhP/PpqYH7Ttwm0pABEjkAm+RF/YEgKz8L5Z0TsO4KQXjgIR36KSyAQarryyhgAuPyCuOldCQMXJaBBWD8opA5G3hzCTACu0fxADyZ2tGw3Suc1Zx/pPRAvfXXQjbMc0qjGm/qXmi5KBeFGKAwFMLUcRvZUAmPrTVlmG+g/RlNiNubweD0KuAVOtixJA/c9NzK8DFRdRNlsJc6xAY0FsxvM7iOeTD3NA/cf1s7v/yaF+7Tg9o85YRY/f/8Y7NFtINk4jujAMRLz9O/76gdmkN3rUYeFx4DLeuOCyBKyQ3IYm0sT8oDFcLhkzLtAJyy3lTDgKXH2NW1Ju8uuAxmZzji7M70FxNVM4CFytdBjgPzX7eh8wudS7AEbT+SFgUvUugBEr7AKuniQC4LX7aLGsbH4Ac+n9L0DKK051BiCCCLZgrm79E4AXHa+f69zxevWBAZeztgCprrrgqJLJQsDkRgOAbr1iqgi4HIsOybjSDpe9dclXlsPkMeDq/fabS0977pq1r75Qd+gnbk39qO0MuGMAAAAASUVORK5CYII=)](https://marketplace.visualstudio.com/items?itemName=mantasu.outline-sections)
 [![release](https://img.shields.io/github/v/release/mantasu/outline-sections?label=🏷️release)](https://github.com/mantasu/outline-sections/releases/latest)
@@ -26,7 +25,7 @@ Organize your code with comment-based sections in the [VS Code](https://code.vis
 
 | Example | Original | With Sections  |
 | ------- | -------- | -------------- |
-| ![example](https://raw.githubusercontent.com/mantasu/outline-sections/main/images/example-body.png) | ![outline-original](https://raw.githubusercontent.com/mantasu/outline-sections/main/images/example-outline-original.png) | ![outline-enhanced](https://raw.githubusercontent.com/mantasu/outline-sections/main/images/example-outline-enhanced.png) |
+| ![example](https://raw.githubusercontent.com/mantasu/outline-sections/main/assets/example-body.png) | ![outline-original](https://raw.githubusercontent.com/mantasu/outline-sections/main/assets/example-outline-original.png) | ![outline-enhanced](https://raw.githubusercontent.com/mantasu/outline-sections/main/assets/example-outline-enhanced.png) |
 
 ## Supported Languages
 
