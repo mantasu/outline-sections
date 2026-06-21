@@ -1,9 +1,9 @@
 {
   "name": "outline-sections",
-  "type": "module",
   "displayName": "Outline Sections",
-  "description": "Injects section markers into the VS Code Outline view",
+  "description": "Injects comment-based section markers into the VS Code Outline view",
   "version": "1.0.4",
+  "icon": "assets/icon.png",
   "publisher": "mantasu",
   "repository": {
     "type": "git",
@@ -13,7 +13,40 @@
     "vscode": "^1.75.0"
   },
   "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Snippets",
     "Other"
+  ],
+  "keywords": [
+    "outline",
+    "outline view",
+    "code outline",
+    "document symbols",
+    "symbols",
+    "code navigation",
+    "navigation",
+    "code organization",
+    "code structure",
+    "sections",
+    "comment sections",
+    "comment banners",
+    "region",
+    "regions",
+    "folding",
+    "code folding",
+    "outline sections",
+    "editor productivity",
+    "workspace productivity",
+    "typescript",
+    "javascript",
+    "python",
+    "rust",
+    "c",
+    "cpp",
+    "c++",
+    "lsp",
+    "language server"
   ],
   "activationEvents": [
     "onStartupFinished"

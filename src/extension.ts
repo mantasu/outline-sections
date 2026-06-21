@@ -71,13 +71,9 @@ export async function provideSymbols(clients: Map<string, any>, doc: vscode.Text
 }
 
 function registerProviders(ctx: vscode.ExtensionContext, clients: Map<string, any>, label: string): void {
-  console.log("Registering providers for languages:", CLIENTS.flatMap(c => c.LANGUAGES));
-
   for (const lang of CLIENTS.flatMap(client => client.LANGUAGES)) {
     // VSCode DocumentSymbol provider that resolves client and builds merged symbol tree
-    console.log(`Registering provider for language: ${lang}`);
-    const provider = { provideDocumentSymbols: (doc: vscode.TextDocument) => { console.log(`[provider] provideDocumentSymbols called for ${doc.languageId} ${doc.uri.toString()}`); return provideSymbols(clients, doc);} };
-    // const provider = { provideDocumentSymbols: (doc: vscode.TextDocument) => provideSymbols(clients, doc) };
+    const provider = { provideDocumentSymbols: (doc: vscode.TextDocument) => provideSymbols(clients, doc) };
     ctx.subscriptions.push(vscode.languages.registerDocumentSymbolProvider({ language: lang }, provider, { label }));
   }
 }

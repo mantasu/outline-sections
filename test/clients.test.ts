@@ -21,7 +21,6 @@ vi.mock('inspector', () => ({
 }));
 
 import * as vscode from 'vscode';
-import * as inspector from 'inspector';
 import { BaseClient } from '../src/clients/base_client';
 import { CClient } from '../src/clients/c_client';
 import { TypeScriptClient } from '../src/clients/ts_client';
@@ -70,6 +69,29 @@ describe('clients', () => {
     const silent = new SilentBase() as any;
     silent.debug = false;
     await expect(silent.setupClient()).resolves.toBeUndefined();
+  });
+
+  test('BaseClient.setupClient logs when debug is enabled', async () => {
+    class VerboseBase extends BaseClient {
+      static readonly LANGUAGES = ['verbose'];
+      protected async getClient() {
+        return {};
+      }
+      async fetchSymbols() {
+        return [];
+      }
+    }
+
+    const verbose = new VerboseBase() as any;
+    verbose.debug = true;
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await expect(verbose.setupClient()).resolves.toBeUndefined();
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   test('CClient.toSymbol converts C/C++ symbol payloads correctly', () => {
@@ -383,6 +405,20 @@ describe('clients', () => {
     await expect(c.sendRequest('other/request', 'arg')).resolves.toBe('ok');
   });
 
+  test('CClient.sendRequest logs when debug is enabled', async () => {
+    const c = new CClient() as any;
+    c.debug = true;
+    c.origSendRequest = vi.fn(async () => 'ok');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await expect(c.sendRequest('other/request', 'arg')).resolves.toBe('ok');
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test('CClient.getClient falls back to the first non-running inner client', async () => {
     const innerClient = { _state: 'stopped' };
     const map = new Map([['k', { innerLanguageClient: innerClient }]]);
@@ -419,6 +455,20 @@ describe('clients', () => {
     py.debug = false;
     py.origSendRequest = vi.fn(async () => 'ok');
     await expect(py.sendRequest('other/type', 'arg')).resolves.toBe('ok');
+  });
+
+  test('PythonClient.sendRequest logs when debug is enabled', async () => {
+    const py = new PythonClient() as any;
+    py.debug = true;
+    py.origSendRequest = vi.fn(async () => 'ok');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await expect(py.sendRequest('other/type', 'arg')).resolves.toBe('ok');
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   test('PythonClient.getClient returns null when inner getClient() returns null', async () => {
@@ -463,6 +513,20 @@ describe('clients', () => {
     ts.debug = false;
     ts.origExecute = vi.fn(async () => 'ok');
     await expect(ts.execute('unknownCommand', {}, {})).resolves.toBe('ok');
+  });
+
+  test('TypeScriptClient.execute logs when debug is enabled', async () => {
+    const ts = new TypeScriptClient() as any;
+    ts.debug = true;
+    ts.origExecute = vi.fn(async () => 'ok');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await expect(ts.execute('unknownCommand', {}, {})).resolves.toBe('ok');
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   test('TypeScriptClient.convertNavTree uses empty string when item.text is absent', () => {

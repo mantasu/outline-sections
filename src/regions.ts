@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import { minBy } from "./utils";
 
-const HEADER_ICON    = vscode.SymbolKind.Class;
-const SUBHEADER_ICON = vscode.SymbolKind.Interface;
-const REGION_ICON    = vscode.SymbolKind.EnumMember;
+const HEADER_ICON    = vscode.SymbolKind.Enum;
+const SUBHEADER_ICON = vscode.SymbolKind.EnumMember;
+const REGION_ICON    = vscode.SymbolKind.Event;
 
 type BlockKind = "header" | "subheader" | "region";
 type Block     = [kind: BlockKind, name: string, start: number, end: number];
@@ -26,7 +26,7 @@ const REGION_KEYWORDS: Record<string, [string, string]> = {
   '#':   ['#\\s*region', '#\\s*endregion'],
   '--':  ['--\\s*region', '--\\s*endregion'],
   '<!--':['<!--\\s*region', '<!--\\s*endregion'],
-  '/*':  ['/\\*\\s*region', '/\\*\\s*endregion|//\\s*endregion'],
+  '/*':  ['(?:/\\*|//)\\s*region', '(?:/\\*|//)\\s*endregion'],
   '//':  ['//\\s*region', '//\\s*endregion'],
 };
 

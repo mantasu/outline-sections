@@ -26,6 +26,19 @@ describe('regions', () => {
     ]);
   });
 
+  test('parseBlocks recognizes // region markers in C-style languages', () => {
+    const doc = makeDoc('typescript', [
+      '// region Experimental flags',
+      'const FEATURE_X = true;',
+      'const FEATURE_Y = false;',
+      '// endregion',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'Experimental flags', 0, 3],
+    ]);
+  });
+
   test('parseBlocks recognizes a one-line subheader banner', () => {
     const doc = makeDoc('python', [
       '# ---- Example ----',

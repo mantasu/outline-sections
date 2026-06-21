@@ -9,7 +9,7 @@ export abstract class BaseClient {
 
   // Attributes
   protected client: any = null;
-  protected debug = true;
+  protected debug = false;
 
   static async create(this: new () => BaseClient): Promise<BaseClient> {
     // Async constructor

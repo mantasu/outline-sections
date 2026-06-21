@@ -1,4 +1,5 @@
 **
+!assets/**
 !out/**
 !package.json
 !README.md
