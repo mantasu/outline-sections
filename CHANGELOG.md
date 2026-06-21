@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/mantasu/outline-sections/compare/v1.0.4...v1.1.0) (2026-06-21)
+
+
+### Features
+
+* documentation and marketplace release ([5f98aa3](https://github.com/mantasu/outline-sections/commit/5f98aa36faecb8d2478d20a8ace2b0df912762ed))
+
 ## [1.0.4](https://github.com/mantasu/outline-sections/compare/v1.0.3...v1.0.4) (2026-06-20)
 
 
