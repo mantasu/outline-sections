@@ -47,7 +47,7 @@ describe('extension', () => {
     expect(doc.save).not.toHaveBeenCalled();
   });
 
-  test('getClient returns null for unsupported languages and still refreshes', async () => {
+  test('getClient returns null for unsupported languages', async () => {
     const clients = new Map<string, any>();
     await expect(getClient(clients, 'unknownlang')).resolves.toBeNull();
     expect(clients.get('unknownlang')).toBeNull();

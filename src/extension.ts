@@ -41,13 +41,15 @@ export async function getClient(clients: Map<string, any>, lang: string): Promis
     // If no running client, find class and create new client instance
     const ClientClass = CLIENTS.find(c => c.LANGUAGES.includes(lang));
     client = ClientClass ? await ClientClass.create() : null;
-    if (!client?.isRunning) return null;
-
-    // Store and refresh symbols
     clients.set(lang, client);
-    await refreshSymbols(lang);
-    
-    return client;
+
+    // Refresh and return client
+    if (client?.isRunning) {
+      await refreshSymbols(lang);
+      return client;
+    }
+
+    return null;
 }
 
 /* -------------------------------------------------------------------------- */
