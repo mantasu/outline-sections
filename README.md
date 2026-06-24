@@ -45,6 +45,37 @@ Organize your code with comment-based sections in the [VS Code](https://code.vis
 
 </div>
 
+## Settings
+
+To add your own region syntax in addition to built-in `#region`/`#endregion` detection, specify custom regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example would match `> Name` (start) and `<` (end):
+
+```json
+{
+	"outlineSections.regionStartRegex": "^>(.+)$",
+    "outlineSections.regionEndRegex": "^<$" // optional
+}
+```
+
+<div align="center">
+
+| Regex                               | Example                    |
+| ----------------------------------- | -------------------------- |
+| `^\s*#\s*note:\s*(.+?)\s*$`         | `# note: Helpers`          |
+| `^\s*//\s*section:\s*(.+?)\s*$`     | `// section: Helpers`      |
+| `^\s*/\*\s*>{6,}\s*(.+?)\s*\*/\s*$` | `/* >>>>>>>>>> Helpers */` |
+| `^\s*/\*\s*<{6,}\s*\*/\s*$`         | `/* <<<<<<<<<< */`         |
+
+</div>
+
+<details>
+<summary>Notes</summary>
+
+* Start regex is additive: built-in region markers still work.
+* If your start regex has a first capture group, it becomes the region name.
+* If no end regex is provided, custom regions auto-close at the next region/header/subheader or end of file.
+
+</details>
+
 ## Development Notes
 
 Install the latest version of [Node.js LTS](https://nodejs.org) and the dependent packages (note all packages install locally into `node_modules/` so no virtual environment is needed):

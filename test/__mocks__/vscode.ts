@@ -76,6 +76,9 @@ export const window = {
 
 export const workspace = {
   textDocuments: [] as any[],
+  getConfiguration: vi.fn(() => ({
+    get: vi.fn((_: string, defaultValue?: any) => defaultValue),
+  })),
 };
 
 export const extensions = {

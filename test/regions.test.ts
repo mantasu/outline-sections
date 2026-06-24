@@ -1,9 +1,15 @@
-import { vi, describe, test, expect } from 'vitest';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
 import { parseBlocks, buildTree } from '../src/regions';
 
 describe('regions', () => {
+  beforeEach(() => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((_: string, defaultValue?: unknown) => defaultValue),
+    });
+  });
+
   const makeDoc = (languageId: string, lines: string[]) => ({
     languageId,
     lineCount: lines.length,
@@ -36,6 +42,87 @@ describe('regions', () => {
 
     expect(parseBlocks(doc as any)).toEqual([
       ['region', 'Experimental flags', 0, 3],
+    ]);
+  });
+
+  test('parseBlocks recognizes custom region start regex from settings', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return '^\\s*#\\s*fold:\\s*(.+)$';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('python', [
+      '# fold: Experiments',
+      'x = 1',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'Experiments', 0, 1],
+    ]);
+  });
+
+  test('parseBlocks treats custom region end as optional when not configured', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return '^\\s*#\\s*fold:\\s*(.+)$';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('python', [
+      '# fold: First',
+      'a = 1',
+      '# fold: Second',
+      'b = 2',
+      '# ----',
+      '# Header',
+      '# ----',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'First', 0, 2],
+      ['region', 'Second', 2, 4],
+      ['header', 'Header', 4, 6],
+    ]);
+  });
+
+  test('parseBlocks recognizes custom region end regex from settings', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return '^\\s*//\\s*section:\\s*(.+?)\\s*$';
+        if (key === 'regionEndRegex') return '^\\s*//\\s*endsection\\b';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('typescript', [
+      '// section: Helpers',
+      'const x = 1;',
+      '// endsection',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'Helpers', 0, 2],
+    ]);
+  });
+
+  test('parseBlocks ignores invalid custom regex settings and keeps built-in parsing', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return '['; // Invalid regex: unterminated character class
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('python', [
+      '# region BuiltIn',
+      '#endregion',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'BuiltIn', 0, 1],
     ]);
   });
 

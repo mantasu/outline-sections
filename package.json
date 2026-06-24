@@ -52,7 +52,25 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "contributes": {},
+  "contributes": {
+    "configuration": {
+      "title": "Outline Sections",
+      "properties": {
+        "outlineSections.regionStartRegex": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Additional regex to detect custom region start lines. See [README](https://github.com/mantasu/outline-sections#settings) for examples.",
+          "scope": "resource"
+        },
+        "outlineSections.regionEndRegex": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional regex to detect custom region end lines. If empty, regions close on the next region/header/subheader start.",
+          "scope": "resource"
+        }
+      }
+    }
+  },
   "scripts": {
     "compile": "tsc -p ./",
     "test": "vitest run --coverage",

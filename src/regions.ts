@@ -9,6 +9,7 @@ type BlockKind = "header" | "subheader" | "region";
 type Block     = [kind: BlockKind, name: string, start: number, end: number];
 
 const PRIORITY: Record<BlockKind, number> = { header: 0, subheader: 1, region: 2 };
+const CONFIG_SECTION = "outlineSections";
 
 
 /* -------------------------------------------------------------------------- */
@@ -55,6 +56,22 @@ function bannerTitle(line: string) {
   return line.replace(/^[\s/*#!\-<>]+/, '').replace(/[\s/*#!\-<>]+$/, '').trim();
 }
 
+function readCustomRegex(setting: string): RegExp | null {
+  const raw = vscode.workspace.getConfiguration(CONFIG_SECTION).get<string>(setting, "").trim();
+  if (!raw) return null;
+
+  try {
+    return new RegExp(raw);
+  } catch {
+    return null;
+  }
+}
+
+function matchesLine(regex: RegExp, line: string): RegExpExecArray | null {
+  regex.lastIndex = 0;
+  return regex.exec(line);
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                   Parser                                   */
 /* -------------------------------------------------------------------------- */
@@ -66,6 +83,8 @@ export function parseBlocks(doc: vscode.TextDocument): Block[] {
   const prefix  = commentPrefix(doc);
   const dash    = dividerRe(prefix);
   const region  = regionRe(prefix);
+  const customStart = readCustomRegex("regionStartRegex");
+  const customEnd = readCustomRegex("regionEndRegex");
 
   const close = (kind: BlockKind, line: number) => {
     while (stack.length && PRIORITY[stack.at(-1)![0]] >= PRIORITY[kind])
@@ -82,17 +101,17 @@ export function parseBlocks(doc: vscode.TextDocument): Block[] {
     const text = doc.lineAt(i).text;
 
     // Region end
-    if (region.end.test(text)) {
+    if (region.end.test(text) || !!(customEnd && matchesLine(customEnd, text))) {
       const idx = stack.findLastIndex(([k]) => k === 'region');
       if (idx !== -1) blocks.push([...stack.splice(idx, 1)[0], i]);
       i++; continue;
     }
 
     // Region start
-    const rm = region.start.exec(text);
+    const rm = region.start.exec(text) ?? (customStart ? matchesLine(customStart, text) : null);
     if (rm) {
       close('region', i);
-      stack.push(['region', rm[1].trim() || 'Region', i]);
+      stack.push(['region', rm[1]?.trim() || 'Region', i]);
       i++; continue;
     }
 
