@@ -1,3 +1,11 @@
+## [1.1.2](https://github.com/mantasu/outline-sections/compare/v1.1.1...v1.1.2) (2026-06-22)
+
+
+### Bug Fixes
+
+* refresh loop ([22f101e](https://github.com/mantasu/outline-sections/commit/22f101e45332cafa3c144e2ab86f5e17600a0440))
+* return/refresh client only if running ([e255591](https://github.com/mantasu/outline-sections/commit/e255591573096b36f6bb7abdd7cd996a0e4561c7))
+
 ## [1.1.1](https://github.com/mantasu/outline-sections/compare/v1.1.0...v1.1.1) (2026-06-21)
 
 
