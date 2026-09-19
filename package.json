@@ -85,13 +85,15 @@
     "@semantic-release/github": "*",
     "@semantic-release/npm": "*",
     "@semantic-release/release-notes-generator": "*",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "*",
+    "@types/vscode": "*",
+    "@vitest/coverage-v8": "*",
+    "js-yaml": "^5.4.2",
     "semantic-release": "*",
     "semantic-release-vsce": "*",
-    "vitest": "*",
-    "@vitest/coverage-v8": "*",
     "typescript": "*",
-    "@types/node": "*",
-    "@types/vscode": "*"
+    "vitest": "*"
   },
   "overrides": {
     "undici": "5.28.4"

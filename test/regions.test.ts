@@ -296,6 +296,139 @@ describe('regions', () => {
     expect(parent.children[1].name).toBe('a');
   });
 
+  test('buildTree nests a section inside the enclosing class symbol', () => {
+    const doc = makeDoc('python', [
+      'class Example:',
+      '    # ----',
+      '    # Helpers',
+      '    # ----',
+      '    def method(self):',
+      '        pass',
+    ]);
+
+    const method = new vscode.DocumentSymbol(
+      'method', '', vscode.SymbolKind.Method,
+      new vscode.Range(4, 0, 5, 0), new vscode.Range(4, 0, 4, 6),
+    );
+    const cls = new vscode.DocumentSymbol(
+      'Example', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 5, 0), new vscode.Range(0, 0, 0, 7),
+    );
+    cls.children.push(method);
+
+    const tree = buildTree([cls], doc as any);
+    expect(tree).toHaveLength(1);
+    expect(tree[0]).toBe(cls);
+    // 'method' is written while the 'Helpers' banner is still open, so it
+    // nests under 'Helpers' rather than becoming a sibling of it.
+    expect(tree[0].children.map(c => c.name)).toEqual(['Helpers']);
+    expect(tree[0].children[0].children.map(c => c.name)).toEqual(['method']);
+  });
+
+  test('buildTree keeps a trailing class banner under the class even when it is the last member', () => {
+    const doc = makeDoc('python', [
+      'class Example:',
+      '    def method(self):',
+      '        pass',
+      '    # ----',
+      '    # Footer',
+      '    # ----',
+    ]);
+
+    const method = new vscode.DocumentSymbol(
+      'method', '', vscode.SymbolKind.Method,
+      new vscode.Range(1, 0, 2, 0), new vscode.Range(1, 0, 1, 6),
+    );
+    const cls = new vscode.DocumentSymbol(
+      'Example', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 5, 0), new vscode.Range(0, 0, 0, 7),
+    );
+    cls.children.push(method);
+
+    const tree = buildTree([cls], doc as any);
+    expect(tree[0]).toBe(cls);
+    expect(tree[0].children.map(c => c.name)).toEqual(['method', 'Footer']);
+  });
+
+  test('buildTree keeps nested class banners under the nearest class and leaves outer-level banners outside', () => {
+    const doc = makeDoc('python', [
+      'class User:',
+      '    def __init__(self, name: str):',
+      '        self.name = name',
+      '    # ---- User state ----',
+      '    def greet(self):',
+      '        return self.name',
+      '    class InnerSession:',
+      '        # ---- inner session ----',
+      '        def run(self):',
+      '            return "ok"',
+      '    # ---- User tail ----',
+      '    def close(self):',
+      '        pass',
+      '',
+      'class Outer:',
+      '    class InnerOne:',
+      '        pass',
+      '    # ---- Outer banner ----',
+      '    def setup(self):',
+      '        pass',
+      '',
+      '# ---- file footer ----',
+    ]);
+
+    const user = new vscode.DocumentSymbol(
+      'User', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 13, 0), new vscode.Range(0, 0, 0, 4),
+    );
+    const inner = new vscode.DocumentSymbol(
+      'InnerSession', '', vscode.SymbolKind.Class,
+      new vscode.Range(6, 0, 10, 0), new vscode.Range(6, 0, 6, 13),
+    );
+    const greet = new vscode.DocumentSymbol(
+      'greet', '', vscode.SymbolKind.Method,
+      new vscode.Range(4, 0, 6, 0), new vscode.Range(4, 0, 4, 5),
+    );
+    const close = new vscode.DocumentSymbol(
+      'close', '', vscode.SymbolKind.Method,
+      new vscode.Range(11, 0, 13, 0), new vscode.Range(11, 0, 11, 5),
+    );
+    const outer = new vscode.DocumentSymbol(
+      'Outer', '', vscode.SymbolKind.Class,
+      new vscode.Range(14, 0, 21, 0), new vscode.Range(14, 0, 14, 5),
+    );
+    const innerOne = new vscode.DocumentSymbol(
+      'InnerOne', '', vscode.SymbolKind.Class,
+      new vscode.Range(15, 0, 17, 0), new vscode.Range(15, 0, 15, 8),
+    );
+    const setup = new vscode.DocumentSymbol(
+      'setup', '', vscode.SymbolKind.Method,
+      new vscode.Range(18, 0, 20, 0), new vscode.Range(18, 0, 18, 5),
+    );
+    user.children.push(greet, inner, close);
+    inner.children.push(new vscode.DocumentSymbol('run', '', vscode.SymbolKind.Method, new vscode.Range(8, 0, 10, 0), new vscode.Range(8, 0, 8, 3)));
+    outer.children.push(innerOne, setup);
+
+    const tree = buildTree([user, outer], doc as any);
+    // A trailing module-level banner after the last class is a top-level
+    // sibling, not swallowed into the preceding class.
+    expect(tree.map(node => node.name)).toEqual(['User', 'Outer', 'file footer']);
+    // 'greet' and 'InnerSession' are both written while 'User state' is still
+    // open (real symbols never close a comment section themselves), so both
+    // nest under it; 'User tail' then closes it out and follows as a sibling,
+    // adopting 'close' as its own child.
+    expect(tree[0].children.map(child => child.name)).toEqual(['User state', 'User tail']);
+    expect(tree[0].children[0].children.map(c => c.name)).toEqual(['greet', 'InnerSession']);
+    expect(tree[0].children[1].children.map(c => c.name)).toEqual(['close']);
+    // Inside InnerSession, its own banner nests the 'run' method under it.
+    const innerSession = tree[0].children[0].children[1];
+    expect(innerSession.children.map(c => c.name)).toEqual(['inner session']);
+    expect(innerSession.children[0].children.map(c => c.name)).toEqual(['run']);
+    // 'InnerOne' precedes any banner so it stays a direct sibling; 'setup' is
+    // written while 'Outer banner' is open, so it nests under it.
+    expect(tree[1].children.map(child => child.name)).toEqual(['InnerOne', 'Outer banner']);
+    expect(tree[1].children[1].children.map(c => c.name)).toEqual(['setup']);
+  });
+
   test('parseBlocks ignores unmatched region-end lines when no region is open', () => {
     const doc = makeDoc('sql', [
       '-- endregion',
