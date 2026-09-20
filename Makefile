@@ -11,7 +11,7 @@ setup: # Setup latest LTS Node.js then install dependencies
 ifeq ($(UNAME),Darwin)
 	brew install node 2>/dev/null || brew upgrade node
 else ifeq ($(UNAME),Linux)
-	sudo npm install -g n && sudo n lts && hash -r
+	sudo npm install -g n npm@latest && sudo n lts && hash -r
 else
 	$(error Windows: install Node.js LTS from https://nodejs.org then run 'make install')
 endif
