@@ -1,3 +1,18 @@
+# [1.3.0](https://github.com/mantasu/outline-sections/compare/v1.2.0...v1.3.0) (2026-09-20)
+
+
+### Bug Fixes
+
+* remove overrides ([2907e4d](https://github.com/mantasu/outline-sections/commit/2907e4dc05c279a7ad0b5e035909b88e8f84db93))
+* update versions ([c215396](https://github.com/mantasu/outline-sections/commit/c2153968cb819317cc2b5aa204085aaf3616ad07))
+* update versions ([15dacb7](https://github.com/mantasu/outline-sections/commit/15dacb72ecd93f8a088aac6738bbffc09de9a408))
+
+
+### Features
+
+* allow sections within elements ([a54f5df](https://github.com/mantasu/outline-sections/commit/a54f5dfa86ad1415a9e6e7224224d98dff92269f))
+* inner sections, java support, simpler regex ([0e3f9aa](https://github.com/mantasu/outline-sections/commit/0e3f9aa161cee8550ecd193d712cbf52543171ea))
+
 # [1.2.0](https://github.com/mantasu/outline-sections/compare/v1.1.2...v1.2.0) (2026-06-24)
 
 
