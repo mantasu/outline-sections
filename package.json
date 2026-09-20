@@ -94,8 +94,5 @@
     "semantic-release-vsce": "*",
     "typescript": "*",
     "vitest": "*"
-  },
-  "overrides": {
-    "undici": "5.28.4"
   }
 }
