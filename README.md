@@ -15,7 +15,37 @@
 
 ## About
 
-Organize your code with comment-based sections in the [VS Code](https://code.visualstudio.com/) **Outline** view. In addition to built-in tree-view elements (``class``, ``method``, etc.), this extension adds support for comment _banners_ and _[region blocks](https://code.visualstudio.com/docs/editing/codebasics#_folding)_ (`#region` / `#endregion`) that also appear as navigable and collapsible sections in the built-in **Outline**.
+Comment regions support for the _built-in_ [VS Code](https://code.visualstudio.com/) **Outline** view. In addition to existing elements (``class``, ``method``, etc.), this extension auto-inserts comment sections (navigable and collapsible) to the **Outline**. Supports 3 types:
+
+<ul>
+<li><details><summary><i>Banners</i> (3-line comment blocks)</summary>
+
+```python
+# ------------------------------- #
+#         Python Example          #
+# ------------------------------- #
+my_var = 0
+```
+
+</details></li>
+<li><details><summary><i>Dividers</i> (1-line dashed comment)</summary>
+
+```python
+# ------- Python Example -------- #
+my_var = 0
+```
+
+</details></li>
+<li><details><summary><a href="https://code.visualstudio.com/docs/editing/codebasics#_folding">Region Blocks</a> (official folding region)</summary>
+
+```python
+# region Python Example
+my_var = 0
+# endregion
+```
+
+</details></li>
+</ul>
 
 > [!TIP]
 > This extension is compatible with [Comment Divider](https://marketplace.visualstudio.com/items?itemName=stackbreak.comment-divider) (strongly recommended)
@@ -41,38 +71,39 @@ Organize your code with comment-based sections in the [VS Code](https://code.vis
 | [![python](https://img.shields.io/badge/-Python-grey?logo=python)](https://www.python.org/) | [vscode-pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance)  | `# region Name` | `# endregion` |
 | [![c](https://img.shields.io/badge/-C-grey?logo=c)](https://en.wikipedia.org/wiki/C_(programming_language)) [![cpp](https://img.shields.io/badge/-C++-grey?logo=cplusplus)](https://en.wikipedia.org/wiki/C%2B%2B) | [cpptools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) | `// #region Name` | `// #endregion` |
 | [![rust](https://img.shields.io/badge/-Rust-grey?logo=rust)](https://www.rust-lang.org/) | [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) | `// #region Name` | `// #endregion` |
-
+| [![java](https://img.shields.io/badge/-Java-grey?logo=openjdk&logoColor=orange)](https://docs.oracle.com/javase/8/docs/technotes/guides/language/index.html) | [java](https://marketplace.visualstudio.com/items?itemName=redhat.java) | `// #region Name` | `// #endregion` |
 
 </div>
 
 ## Settings
 
-To add your own region syntax in addition to built-in `#region`/`#endregion` detection, specify custom regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example would match `> Name` (start) and `<` (end):
+To add custom region syntax in addition to built-in `#region`/`#endregion` detection, specify the regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example matching `note: Name` (start) and `end` (end):
 
 ```json
 {
-	"outlineSections.regionStartRegex": "^>(.+)$",
-    "outlineSections.regionEndRegex": "^<$" // optional
+	"outlineSections.regionStartRegex": "note:\\s*(.+)",
+    "outlineSections.regionEndRegex": "end" // optional
 }
 ```
 
 <div align="center">
 
-| Regex                               | Example                    |
-| ----------------------------------- | -------------------------- |
-| `^\s*#\s*note:\s*(.+?)\s*$`         | `# note: Helpers`          |
-| `^\s*//\s*section:\s*(.+?)\s*$`     | `// section: Helpers`      |
-| `^\s*/\*\s*>{6,}\s*(.+?)\s*\*/\s*$` | `/* >>>>>>>>>> Helpers */` |
-| `^\s*/\*\s*<{6,}\s*\*/\s*$`         | `/* <<<<<<<<<< */`         |
+| Pattern           | Example | Match                 |
+| ----------------- | ------- | --------------------- |
+| `note:\s*(.+)`    | Python  | `# note: Helpers`     |
+| `section:\s*(.+)` | Rust    | `// section: Helpers` |
+| `>{3,}\s*(.+)`    | Java    | `/* >>> Helpers */`   |
+| `<{6,}`           | C       | `/* <<<<<<<<<< */`    |
 
 </div>
 
 <details>
 <summary>Notes</summary>
 
-* Start regex is additive: built-in region markers still work.
-* If your start regex has a first capture group, it becomes the region name.
-* If no end regex is provided, custom regions auto-close at the next region/header/subheader or end of file.
+* No need to specify `^`, `\s*`, or comment markers (`#`, `//`, etc.) - they are automatically considered.
+* Start pattern is additive: built-in region markers still work.
+* If your start pattern has a first capture group, it becomes the region name.
+* If no end pattern is provided, custom regions auto-close at the next region/header/subheader or end of file.
 
 </details>
 

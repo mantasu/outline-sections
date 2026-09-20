@@ -1,160 +1,294 @@
-tmp_test_py:
-  - Random:
-      - a
-  - User:
-      - __init__
-      - Should be inside User
-  - Should be outside user:
-      - User2:
-          - Inner1:
-              - Should be inside Inner1
-          - Should be inside User2 a:
-              - Inner2
-              - Should be inside User2 b
-              - Should be inside User2 c:
-                  - Inner3
-              - Should be inside User2 d:
-                  - Inner4:
-                      - Should be inside Inner4
-  - Should be outside user2:
-      - User3:
-          - triple-line banner (shoul dbe in User):
-              - __init__
-
 test_py:
-  - Utilities:
-      - helper_one
-      - helper_two:
-          - closure
-  - Deep:
-      - Middle:
-          - Inner:
-              - innermost:
-                  - deep
-  - Account:
-      - __init__
-      - Account internals
-  - Outside Account:
-      - Ledger:
-          - Entries
-          - Entries detail
-          - Ledger Section A:
-              - Totals
-              - Ledger Section B
-              - Ledger Section C:
-                  - Snapshot
-              - Ledger Section D:
-                  - Audit:
-                      - Audit inline
-  - Outside Ledger:
-      - Profile:
-          - Profile Header:
-              - __init__
-  - Trailing Region Demo:
-      - OpenEnded:
-          - unbounded_one
-      - Malformed tail (should not crash the parser)
+  - HHH:
+      - p
+      - q:
+          - r
+  - A:
+      - AA:
+          - AAA:
+              - HHH:
+                  - a
+  - B:
+      - H:
+          - b
+  - C:
+      - CA:
+          - HH
+      - CB:
+          - HH
+      - CC
+      - HH
+  - D:
+      - DA:
+          - HH
+  - M:
+      - s:
+          - HH
+      - t
+      - HH
+  - N:
+      - na:
+          - HH
+      - nb
+      - HH:
+          - nc
+      - HH:
+          - nd
+  - P:
+      - pa:
+          - PP
+          - HH
+      - pb:
+          - PQ:
+              - HH
+  - R:
+      - H:
+          - ra
+          - rb:
+              - HH
+          - rc
+          - HH
+  - E:
+      - e
+      - HH
+  - HH:
+      - F:
+          - f
+  - HH:
+      - G:
+          - g
+  - H:
+      - HHH:
+          - unbounded
+      - HH
 
 test_ts:
-  - Handlers:
-      - onLoad
-      - onSave:
-          - persist
-  - Deep:
-      - Middle:
-          - Inner:
-              - innermost:
-                  - run
-  - Shop:
-      - Cart:
-          - add
-          - Cart internals
-      - Outside Cart:
-          - Inventory:
-              - Reserved:
-                  - Reserved detail
-              - Inventory Section A:
-                  - Stock
-                  - Inventory Section B
-                  - Inventory Section C:
-                      - Ledger
-                  - Inventory Section D:
-                      - Audit:
-                          - Audit inline
-      - Outside Inventory
-  - Config:
-      - Config Header:
-          - constructor
-  - Trailing Region Demo:
-      - OpenEnded:
-          - unboundedOne
-      - Malformed tail (should not crash the parser)
+  - HHH:
+      - p
+      - q:
+          - r
+  - A:
+      - AA:
+          - AAA:
+              - HHH:
+                  - a
+  - B:
+      - H:
+          - b
+  - C:
+      - CA:
+          - HH
+      - CB:
+          - HH
+      - CC
+      - HH
+  - D:
+      - DA:
+          - HH
+  - M:
+      - s:
+          - HH
+      - t
+      - HH
+  - N:
+      - na:
+          - HH
+      - nb
+      - HH:
+          - nc
+      - HH:
+          - nd
+  - P:
+      - pa:
+          - PP
+          - HH
+      - pb:
+          - PQ:
+              - HH
+  - R:
+      - H:
+          - ra
+          - rb:
+              - HH
+          - rc
+          - HH
+  - E:
+      - e
+      - HH
+  - HH:
+      - F:
+          - f
+  - HH:
+      - G:
+          - g
+  - H:
+      - HHH:
+          - unbounded
+      - HH
 
 test_rs:
-  - handlers:
-      - on_load
-      - on_save:
-          - persist
-  - deep:
-      - middle:
-          - inner:
-              - innermost:
-                  - run
-  - shop:
-      - Cart:
-          - add
-          - Cart internals
-      - Outside Cart:
-          - Inventory:
-              - reserved:
-                  - Reserved detail
-              - Inventory Section A:
-                  - stock
-                  - Inventory Section B
-                  - Inventory Section C:
-                      - ledger
-                  - Inventory Section D:
-                      - audit:
-                          - Audit inline
-      - Outside Inventory
-  - Config:
-      - Config Header:
-          - new
-  - Trailing Region Demo:
-      - open_ended:
-          - unbounded_one
-      - Malformed tail (should not crash the parser)
+  - HHH:
+      - p
+      - q:
+          - r
+  - A:
+      - AA:
+          - AAA:
+              - HHH:
+                  - a
+  - B:
+      - H:
+          - b
+  - C:
+      - CA:
+          - HH
+      - CB:
+          - HH
+      - CC
+      - HH
+  - D:
+      - DA:
+          - HH
+  - M:
+      - s:
+          - HH
+      - t
+      - HH
+  - N:
+      - na:
+          - HH
+      - nb
+      - HH:
+          - nc
+      - HH:
+          - nd
+  - P:
+      - pa:
+          - PP
+          - HH
+      - pb:
+          - PQ:
+              - HH
+  - R:
+      - H:
+          - ra
+          - rb:
+              - HH
+          - rc
+          - HH
+  - E:
+      - e
+      - HH
+  - HH:
+      - F:
+          - f
+  - HH:
+      - G:
+          - g
+  - H:
+      - HHH:
+          - unbounded
+      - HH
 
 test_cpp:
-  - handlers:
-      - on_load
-      - on_save:
-          - persist
-  - deep:
-      - middle:
-          - Inner:
-              - innermost:
-                  - run
-  - Cart:
-      - add
-      - Cart internals
-  - Outside Cart:
-      - Inventory:
-          - Reserved:
-              - Reserved detail
-          - Inventory Section A:
-              - Stock
-              - Inventory Section B
-              - Inventory Section C:
-                  - Ledger
-              - Inventory Section D:
-                  - Audit:
-                      - Audit inline
-  - Outside Inventory:
-      - Config:
-          - Config Header:
-              - Config
-  - Trailing Region Demo:
-      - open_ended:
-          - unbounded_one
-      - Malformed tail (should not crash the parser)
+  - HHH:
+      - p
+      - q:
+          - r
+  - A:
+      - AA:
+          - AAA:
+              - HHH:
+                  - a
+  - B:
+      - H:
+          - b
+  - C:
+      - CA:
+          - HH
+      - CB:
+          - HH
+      - CC
+      - HH
+  - D:
+      - DA:
+          - HH
+  - M:
+      - s:
+          - HH
+      - t
+      - HH
+  - N:
+      - na:
+          - HH
+      - nb
+      - HH:
+          - nc
+      - HH:
+          - nd
+  - P:
+      - pa:
+          - PP
+          - HH
+      - pb:
+          - PQ:
+              - HH
+  - R:
+      - H:
+          - ra
+          - rb:
+              - HH
+          - rc
+          - HH
+  - E:
+      - e
+      - HH
+  - HH:
+      - F:
+          - f
+  - HH:
+      - G:
+          - g
+  - H:
+      - HHH:
+          - unbounded
+      - HH
+
+test_java:
+  - HHH:
+      - A:
+          - a
+  - B:
+      - BA:
+          - BAA:
+              - HHH:
+                  - b
+  - C:
+      - H:
+          - c
+  - D:
+      - DA:
+          - HH
+      - DB
+      - HH
+  - E:
+      - ea:
+          - HH
+      - eb
+      - HH:
+          - ec
+  - F:
+      - H:
+          - fa
+          - fb:
+              - HH
+  - G:
+      - g
+      - HH
+  - HH:
+      - I:
+          - i
+  - H:
+      - HHH:
+          - J:
+              - j

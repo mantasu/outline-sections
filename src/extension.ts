@@ -3,33 +3,59 @@ import { PythonClient } from "./clients/py_client";
 import { RustClient } from "./clients/rs_client";
 import { CClient } from "./clients/c_client";
 import { TypeScriptClient } from "./clients/ts_client";
+import { JavaClient } from "./clients/java_client";
 import { buildTree } from "./regions";
 
 
-const CLIENTS = [PythonClient, RustClient, CClient, TypeScriptClient];
+const CLIENTS = [PythonClient, RustClient, CClient, TypeScriptClient, JavaClient];
 
 
 /* -------------------------------------------------------------------------- */
 /*                                   Clients                                  */
 /* -------------------------------------------------------------------------- */
 
+// export async function refreshSymbols(lang: string): Promise<void> {
+//   console.log(`[refreshSymbols] called for "${lang}" at`, Date.now());
+//   const docs = vscode.workspace.textDocuments.filter(d => d.languageId === lang);
+
+//   for (const doc of docs) {
+//     const wasDirty = doc.isDirty;
+//     const editor = await vscode.window.showTextDocument(doc, { preserveFocus: true, preview: false });
+
+//     await editor.edit(editBuilder => {
+//       editBuilder.insert(new vscode.Position(0, 0), ' ');
+//     }, { undoStopBefore: false, undoStopAfter: false });
+
+//     await editor.edit(editBuilder => {
+//       editBuilder.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 1)));
+//     }, { undoStopBefore: false, undoStopAfter: false });
+
+//     if (!wasDirty) await doc.save();
+//   }
+// }
+
+
 export async function refreshSymbols(lang: string): Promise<void> {
-  const docs = vscode.workspace.textDocuments.filter(d => d.languageId === lang);
+  const prev: Promise<void> = (refreshSymbols as any)._chain ?? Promise.resolve();
 
-  for (const doc of docs) {
-    const wasDirty = doc.isDirty;
-    const editor = await vscode.window.showTextDocument(doc, { preserveFocus: true, preview: false });
+  const run = prev.then(async () => {
+    const docs = vscode.workspace.textDocuments.filter(d => d.languageId === lang);
 
-    await editor.edit(editBuilder => {
-      editBuilder.insert(new vscode.Position(0, 0), ' ');
-    }, { undoStopBefore: false, undoStopAfter: false });
+    for (const doc of docs) {
+      const wasDirty = doc.isDirty;
+      const editor = await vscode.window.showTextDocument(doc, { preserveFocus: true, preview: false });
 
-    await editor.edit(editBuilder => {
-      editBuilder.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 1)));
-    }, { undoStopBefore: false, undoStopAfter: false });
+      await editor.edit(e => e.insert(new vscode.Position(0, 0), ' '),
+        { undoStopBefore: false, undoStopAfter: false });
+      await editor.edit(e => e.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 1))),
+        { undoStopBefore: false, undoStopAfter: false });
 
-    if (!wasDirty) await doc.save();
-  }
+      if (!wasDirty) await vscode.commands.executeCommand("workbench.action.files.revert");
+    }
+  });
+
+  (refreshSymbols as any)._chain = run.catch(() => {});
+  return run;
 }
 
 
@@ -69,7 +95,7 @@ export async function provideSymbols(clients: Map<string, any>, doc: vscode.Text
     console.log(`\n[${client.constructor.name}] Symbols for ${doc.fileName}:`);
     console.log(symbols, "\nMerged tree:\n", tree);
   }
-  
+
   return tree;
 }
 

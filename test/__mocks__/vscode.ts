@@ -23,7 +23,7 @@ export enum SymbolKind {
 }
 
 export class Position {
-  constructor(public line: number, public character: number) {}
+  constructor(public line: number, public character: number) { }
 }
 
 export class Range {
@@ -50,12 +50,12 @@ export class DocumentSymbol {
     public kind: number,
     public range: Range,
     public selectionRange: Range,
-  ) {}
+  ) { }
 }
 
 export class CancellationTokenSource {
   token = {};
-  dispose() {}
+  dispose() { }
 }
 
 export const languages = {
@@ -66,8 +66,8 @@ export const window = {
   showTextDocument: vi.fn(async () => ({
     edit: async (callback: any) => {
       callback({
-        insert: () => {},
-        delete: () => {},
+        insert: () => { },
+        delete: () => { },
       });
       return true;
     },
@@ -83,6 +83,10 @@ export const workspace = {
 
 export const extensions = {
   getExtension: vi.fn(),
+};
+
+export const commands = {
+  executeCommand: vi.fn(),
 };
 
 export const Uri = {

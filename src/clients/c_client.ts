@@ -19,7 +19,7 @@ export class CClient extends BaseClient {
     if (this.debug) console.log(`[${this.constructor.name}] sendRequest`, t, params);
 
     // Suppress documentSymbol reqs, whitelist internal
-    if (t === CClient.WHITELIST) return this.origSendRequest("cpptools/getDocumentSymbols", ...params);
+    if (t === CClient.WHITELIST) return this.client._rpcClient.sendRequest("cpptools/getDocumentSymbols", ...params);
     if (t === "cpptools/getDocumentSymbols") return { symbols: [] };
 
     return this.origSendRequest(type, ...params);
@@ -36,8 +36,8 @@ export class CClient extends BaseClient {
 
     // Walk the map to find a running language client
     const extractClient = (map: Map<any, any>) => {
-      const entries = [...map.values()].map(c => c?.innerLanguageClient).filter(Boolean);
-      return entries.find(c => c._state === "running") ?? entries[0] ?? null;
+      const entries = [...map.values()].map(c => c?.languageClient).filter(Boolean);
+      return entries.find(c => c._rpcClient?._state === "running") ?? entries[0] ?? null;
     };
 
     function probe(resolve: (c: any) => void) {
@@ -47,7 +47,7 @@ export class CClient extends BaseClient {
 
       // Intercept forEach to catch the moment the extension walks its client map
       Map.prototype.forEach = function (this: Map<any, any>, cb: any, thisArg?: any) {
-        if (!done && this.values().next().value?.innerLanguageClient !== undefined) finish(extractClient(this));
+        if (!done && this.values().next().value?.languageClient !== undefined) finish(extractClient(this));
         return orig.call(this, cb, thisArg);
       } as any;
 
@@ -65,7 +65,7 @@ export class CClient extends BaseClient {
   }
 
   override get isRunning(): boolean {
-    return super.isRunning && this.client?._state === "running";
+    return super.isRunning && this.client._rpcClient?._state === "running";
   }
 
   override async fetchSymbols(doc: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {

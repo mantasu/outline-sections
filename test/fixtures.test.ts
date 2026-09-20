@@ -4,46 +4,85 @@ import * as yaml from 'js-yaml';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
-import { buildTree } from '../src/regions';
+import { buildTree, parseBlocks } from '../src/regions';
 
-// These fixtures pair a real source file (test/resources/<filename>.<ext>)
-// with a hand-built mock symbol tree standing in for what a real language
-// server would report, and an expected outline tree recorded in
-// test/resources/expected.yaml under the key `<filename>_<ext>`. Together
-// they exercise: closed/unclosed regions, 3-line headers, 1-line subheaders,
-// banners nested arbitrarily deep inside classes, banners glued to the end of
-// a class body ("trailing" banners), banners sitting between two top-level
-// symbols ("outside"), cascading headers that swallow everything up to the
-// next header, and malformed/unparsable trailing code that must not crash
-// the parser.
-
-// A section with no children is a plain string; a section with children is a
-// single-key mapping from its name to its list of children.
+// Data-driven: every key in expected.yaml is `<stem>_<lang>`, paired with the
+// source file `<stem>.<lang-ext>`. The symbols a language server would report
+// are recovered from the expected tree by dropping the comment sections (whose
+// names parseBlocks finds as banners in the source) and locating every
+// remaining name in document order, so a new case is added just by dropping in
+// a fixture and an expected entry.
 type ExpectedNode = string | Record<string, ExpectedNode[]>;
 
-const expected = yaml.load(
-  fs.readFileSync(path.join(__dirname, 'resources', 'expected.yaml'), 'utf8'),
-) as Record<string, ExpectedNode[]>;
+const resources = path.join(__dirname, 'resources');
+const expected = yaml.load(fs.readFileSync(path.join(resources, 'expected.yaml'), 'utf8')) as Record<string, ExpectedNode[]>;
 
-const loadDoc = (languageId: string, file: string) => {
-  const lines = fs.readFileSync(path.join(__dirname, 'resources', file), 'utf8').split('\n');
-  return {
-    languageId,
-    lineCount: lines.length,
-    lineAt: (index: number) => ({ text: lines[index] }),
-    getText: () => lines.join('\n'),
-  } as unknown as vscode.TextDocument;
+const LANGS: Record<string, { id: string; ext: string; brace: boolean }> = {
+  py: { id: 'python', ext: 'py', brace: false },
+  ts: { id: 'typescript', ext: 'ts', brace: true },
+  rs: { id: 'rust', ext: 'rs', brace: true },
+  cpp: { id: 'cpp', ext: 'cpp', brace: true },
+  java: { id: 'java', ext: 'java', brace: true },
 };
 
-const sym = (
-  name: string,
-  kind: vscode.SymbolKind,
-  start: number,
-  end: number,
-  children: vscode.DocumentSymbol[] = [],
-): vscode.DocumentSymbol => {
+const loadDoc = (languageId: string, lines: string[]) => ({
+  languageId,
+  lineCount: lines.length,
+  lineAt: (index: number) => ({ text: lines[index] }),
+  getText: () => lines.join('\n'),
+}) as unknown as vscode.TextDocument;
+
+const toExpected = (nodes: vscode.DocumentSymbol[]): ExpectedNode[] =>
+  nodes.map(n => (n.children.length ? { [n.name]: toExpected(n.children) } : n.name));
+
+const indentOf = (line: string) => line.length - line.trimStart().length;
+const isCommentLine = (line: string) => /^\s*(#|\/\/|\/\*|\*)/.test(line);
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Finds the next line (at or after `from`, in document order) that declares
+// `name` in code, so duplicate names across scopes resolve to distinct lines.
+const findDecl = (lines: string[], name: string, from: number) => {
+  const re = new RegExp(`\\b${escapeRe(name)}\\b`);
+  for (let i = from; i < lines.length; i++)
+    if (lines[i].trim() && !isCommentLine(lines[i]) && re.test(lines[i])) return i;
+  throw new Error(`declaration not found: ${name}`);
+};
+
+// A Python def/class spans its (possibly wrapped) signature up to the `:` plus
+// every following code line indented deeper than it; blank and comment lines
+// are skipped so a shallow trailing banner never cuts the body short.
+const pyRange = (lines: string[], i: number): [number, number] => {
+  const d = indentOf(lines[i]);
+  let depth = 0, head = i;
+  for (let k = i; k < lines.length; k++) {
+    for (const ch of lines[k]) depth += ch === '(' ? 1 : ch === ')' ? -1 : 0;
+    if (depth <= 0 && lines[k].includes(':')) { head = k; break; }
+  }
+  let end = head;
+  for (let j = head + 1; j < lines.length; j++) {
+    if (!lines[j].trim() || isCommentLine(lines[j])) continue;
+    if (indentOf(lines[j]) > d) end = j; else break;
+  }
+  return [i, end];
+};
+
+// A brace symbol ends where the braces opened at/after its declaration balance.
+const braceRange = (lines: string[], i: number): [number, number] => {
+  let depth = 0, seen = false;
+  for (let k = i; k < lines.length; k++) {
+    if (isCommentLine(lines[k])) continue;
+    for (const ch of lines[k]) {
+      if (ch === '{') { depth++; seen = true; }
+      else if (ch === '}') depth--;
+    }
+    if (seen && depth <= 0) return [i, k];
+  }
+  return [i, i];
+};
+
+const sym = (name: string, start: number, end: number, children: vscode.DocumentSymbol[]): vscode.DocumentSymbol => {
   const s = new vscode.DocumentSymbol(
-    name, '', kind,
+    name, '', vscode.SymbolKind.Function,
     new vscode.Range(start, 0, end, 999),
     new vscode.Range(start, 0, start, 0),
   );
@@ -51,8 +90,34 @@ const sym = (
   return s;
 };
 
-const toExpected = (nodes: vscode.DocumentSymbol[]): ExpectedNode[] =>
-  nodes.map(n => (n.children.length ? { [n.name]: toExpected(n.children) } : n.name));
+// Rebuilds the language-server symbol tree from the expected outline: comment
+// sections are dropped (their symbol descendants rise to the nearest symbol
+// ancestor) and each surviving name is resolved, in document order, to a
+// source range. `cursor` advances monotonically so repeated names (e.g. two
+// `__init__`) map to their own declaration.
+const deriveSymbols = (
+  nodes: ExpectedNode[],
+  lines: string[],
+  brace: boolean,
+  isComment: (name: string) => boolean,
+  cursor: { line: number },
+): vscode.DocumentSymbol[] => {
+  const out: vscode.DocumentSymbol[] = [];
+  for (const node of nodes) {
+    const name = typeof node === 'string' ? node : Object.keys(node)[0];
+    const kids = typeof node === 'string' ? [] : (node[name] ?? []);
+    if (isComment(name)) {
+      out.push(...deriveSymbols(kids, lines, brace, isComment, cursor));
+      continue;
+    }
+    const decl = findDecl(lines, name, cursor.line);
+    cursor.line = decl;
+    const [start, end] = brace ? braceRange(lines, decl) : pyRange(lines, decl);
+    const childSyms = deriveSymbols(kids, lines, brace, isComment, cursor);
+    out.push(sym(name, start, end, childSyms));
+  }
+  return out;
+};
 
 describe('outline fixtures', () => {
   beforeEach(() => {
@@ -61,165 +126,16 @@ describe('outline fixtures', () => {
     });
   });
 
-  test('tmp_test_py: cascading subheaders/headers nest across sibling classes as documented', () => {
-    const doc = loadDoc('python', 'tmp_test.py');
-    const K = vscode.SymbolKind;
-    const symbols = [
-      sym('User', K.Class, 0, 4, [
-        sym('__init__', K.Method, 1, 3),
-      ]),
-      sym('User2', K.Class, 7, 26, [
-        sym('Inner1', K.Class, 8, 11),
-        sym('Inner2', K.Class, 15, 17),
-        sym('Inner3', K.Class, 20, 21),
-        sym('Inner4', K.Class, 23, 26),
-      ]),
-      sym('User3', K.Class, 29, 34, [
-        sym('__init__', K.Method, 33, 34),
-      ]),
-    ];
-
-    const tree = buildTree(symbols, doc);
-    expect(toExpected(tree)).toEqual(expected.tmp_test_py);
-  });
-
-  test('test_py: nests sections under closed regions, cascading headers, and trailing banners', () => {
-    const doc = loadDoc('python', 'test.py');
-    const K = vscode.SymbolKind;
-    const symbols = [
-      sym('helper_one', K.Function, 2, 3),
-      sym('helper_two', K.Function, 6, 11, [
-        sym('closure', K.Function, 9, 10),
-      ]),
-      sym('Deep', K.Class, 16, 21, [
-        sym('Middle', K.Class, 17, 21, [
-          sym('Inner', K.Class, 18, 21, [
-            sym('deep', K.Method, 20, 21),
-          ]),
-        ]),
-      ]),
-      sym('Account', K.Class, 25, 27, [
-        sym('__init__', K.Method, 26, 27),
-      ]),
-      sym('Ledger', K.Class, 32, 50, [
-        sym('Entries', K.Class, 33, 34),
-        sym('Totals', K.Class, 40, 41),
-        sym('Snapshot', K.Class, 45, 45),
-        sym('Audit', K.Class, 48, 50),
-      ]),
-      sym('Profile', K.Class, 55, 60, [
-        sym('__init__', K.Method, 59, 60),
-      ]),
-      sym('unbounded_one', K.Function, 69, 70),
-    ];
-
-    const tree = buildTree(symbols, doc);
-    expect(toExpected(tree)).toEqual(expected.test_py);
-  });
-
-  test('test_ts: nests sections under closed regions, cascading headers, and trailing banners', () => {
-    const doc = loadDoc('typescript', 'test.ts');
-    const K = vscode.SymbolKind;
-    const symbols = [
-      sym('onLoad', K.Function, 2, 5),
-      sym('onSave', K.Function, 6, 14, [
-        sym('persist', K.Function, 9, 12),
-      ]),
-      sym('Deep', K.Namespace, 17, 28, [
-        sym('Middle', K.Namespace, 18, 27, [
-          sym('Inner', K.Class, 19, 26, [
-            sym('run', K.Method, 21, 24),
-          ]),
-        ]),
-      ]),
-      sym('Shop', K.Namespace, 29, 69, [
-        sym('Cart', K.Class, 30, 38, [
-          sym('add', K.Method, 33, 36),
-        ]),
-        sym('Inventory', K.Class, 41, 67, [
-          sym('Reserved', K.Class, 42, 46),
-          sym('Stock', K.Class, 51, 54),
-          sym('Ledger', K.Class, 57, 60),
-          sym('Audit', K.Class, 62, 66),
-        ]),
-      ]),
-      sym('Config', K.Class, 70, 76, [
-        sym('constructor', K.Constructor, 74, 75),
-      ]),
-      sym('unboundedOne', K.Function, 83, 86),
-    ];
-
-    const tree = buildTree(symbols, doc);
-    expect(toExpected(tree)).toEqual(expected.test_ts);
-  });
-
-  test('test_rs: nests sections under closed regions, cascading headers, and trailing banners', () => {
-    const doc = loadDoc('rust', 'test.rs');
-    const K = vscode.SymbolKind;
-    const symbols = [
-      sym('on_load', K.Function, 2, 5),
-      sym('on_save', K.Function, 6, 13, [
-        sym('persist', K.Function, 9, 12),
-      ]),
-      sym('deep', K.Module, 16, 27, [
-        sym('middle', K.Module, 17, 26, [
-          sym('inner', K.Module, 18, 25, [
-            sym('run', K.Function, 20, 23),
-          ]),
-        ]),
-      ]),
-      sym('shop', K.Module, 28, 74, [
-        sym('Cart', K.Struct, 29, 39, [
-          sym('add', K.Method, 34, 37),
-        ]),
-        sym('Inventory', K.Struct, 42, 72, [
-          sym('reserved', K.Module, 47, 51),
-          sym('stock', K.Module, 56, 59),
-          sym('ledger', K.Module, 62, 65),
-          sym('audit', K.Module, 67, 71),
-        ]),
-      ]),
-      sym('Config', K.Struct, 75, 87, [
-        sym('new', K.Function, 83, 86),
-      ]),
-      sym('unbounded_one', K.Function, 94, 97),
-    ];
-
-    const tree = buildTree(symbols, doc);
-    expect(toExpected(tree)).toEqual(expected.test_rs);
-  });
-
-  test('test_cpp: nests sections under closed regions, cascading headers, and trailing banners', () => {
-    const doc = loadDoc('cpp', 'test.cpp');
-    const K = vscode.SymbolKind;
-    const symbols = [
-      sym('on_load', K.Function, 2, 5),
-      sym('on_save', K.Function, 6, 14, [
-        sym('persist', K.Variable, 9, 12),
-      ]),
-      sym('deep', K.Namespace, 17, 29, [
-        sym('middle', K.Namespace, 18, 28, [
-          sym('Inner', K.Class, 19, 27, [
-            sym('run', K.Method, 22, 25),
-          ]),
-        ]),
-      ]),
-      sym('Cart', K.Class, 30, 39, [
-        sym('add', K.Method, 32, 35),
-      ]),
-      sym('Inventory', K.Class, 41, 72, [
-        sym('Reserved', K.Class, 43, 48),
-        sym('Stock', K.Class, 53, 57),
-        sym('Ledger', K.Class, 60, 64),
-        sym('Audit', K.Class, 66, 71),
-      ]),
-      sym('Config', K.Class, 74, 83, [
-        sym('Config', K.Constructor, 79, 80),
-      ]),
-      sym('unbounded_one', K.Function, 90, 93),
-    ];
-
-    const tree = buildTree(symbols, doc);
-    expect(toExpected(tree)).toEqual(expected.test_cpp);
-  });
+  for (const key of Object.keys(expected)) {
+    const lang = LANGS[key.slice(key.lastIndexOf('_') + 1)];
+    const stem = key.slice(0, key.lastIndexOf('_'));
+    test(key, () => {
+      const lines = fs.readFileSync(path.join(resources, `${stem}.${lang.ext}`), 'utf8').split('\n');
+      const doc = loadDoc(lang.id, lines);
+      const bannerNames = new Set(parseBlocks(doc).map(b => b[1]));
+      const isComment = (name: string) => bannerNames.has(name);
+      const symbols = deriveSymbols(expected[key], lines, lang.brace, isComment, { line: 0 });
+      expect(toExpected(buildTree(symbols, doc))).toEqual(expected[key]);
+    });
+  }
 });

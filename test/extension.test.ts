@@ -20,7 +20,7 @@ describe('extension', () => {
     expect(ctx.subscriptions.length).toBeGreaterThan(0);
   });
 
-  test('refreshSymbols edits matching documents and saves if not dirty', async () => {
+  test('refreshSymbols edits matching documents and reverts if not dirty', async () => {
     const doc = {
       languageId: 'python',
       isDirty: false,
@@ -31,7 +31,7 @@ describe('extension', () => {
     (vscode.workspace as any).textDocuments = [doc];
     await expect(refreshSymbols('python')).resolves.toBeUndefined();
     expect(vscode.window.showTextDocument).toHaveBeenCalledWith(doc, { preserveFocus: true, preview: false });
-    expect(doc.save).toHaveBeenCalled();
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith("workbench.action.files.revert");
   });
 
   test('refreshSymbols does not save already dirty documents', async () => {
@@ -45,6 +45,24 @@ describe('extension', () => {
     (vscode.workspace as any).textDocuments = [doc];
     await expect(refreshSymbols('python')).resolves.toBeUndefined();
     expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  test('refreshSymbols swallows chain errors internally so later calls still run', async () => {
+    const doc = {
+      languageId: 'python',
+      isDirty: false,
+      save: vi.fn(async () => {}),
+      uri: { toString: () => 'file:///tmp/err.py' },
+    } as any;
+    (vscode.workspace as any).textDocuments = [doc];
+
+    (vscode.window.showTextDocument as any).mockRejectedValueOnce(new Error('boom'));
+    await expect(refreshSymbols('python')).rejects.toThrow('boom');
+
+    (vscode.window.showTextDocument as any).mockResolvedValueOnce({
+      edit: async (cb: any) => { cb({ insert: () => {}, delete: () => {} }); return true; },
+    });
+    await expect(refreshSymbols('python')).resolves.toBeUndefined();
   });
 
   test('getClient returns null for unsupported languages', async () => {

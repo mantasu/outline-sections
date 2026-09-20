@@ -1,7 +1,7 @@
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
-import { parseBlocks, buildTree } from '../src/regions';
+import { parseBlocks, buildTree, regionName, readCustomRegex } from '../src/regions';
 
 describe('regions', () => {
   beforeEach(() => {
@@ -45,10 +45,40 @@ describe('regions', () => {
     ]);
   });
 
+  test('parseBlocks recognizes // #region markers in C-style languages', () => {
+    const doc = makeDoc('typescript', [
+      '// #region String helpers',
+      'function a() {}',
+      '// #endregion',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'String helpers', 0, 2],
+    ]);
+  });
+
+  test('parseBlocks strips a trailing block-comment closer from a custom region name', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return '>{3,}\\s*(.+)';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('typescript', [
+      '/* >>> My region */',
+      'const x = 1;',
+    ]);
+
+    expect(parseBlocks(doc as any)).toEqual([
+      ['region', 'My region', 0, 1],
+    ]);
+  });
+
   test('parseBlocks recognizes custom region start regex from settings', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
-        if (key === 'regionStartRegex') return '^\\s*#\\s*fold:\\s*(.+)$';
+        if (key === 'regionStartRegex') return 'fold:\\s*(.+)';
         return defaultValue;
       }),
     });
@@ -66,7 +96,7 @@ describe('regions', () => {
   test('parseBlocks treats custom region end as optional when not configured', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
-        if (key === 'regionStartRegex') return '^\\s*#\\s*fold:\\s*(.+)$';
+        if (key === 'regionStartRegex') return 'fold:\\s*(.+)';
         return defaultValue;
       }),
     });
@@ -91,8 +121,8 @@ describe('regions', () => {
   test('parseBlocks recognizes custom region end regex from settings', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
-        if (key === 'regionStartRegex') return '^\\s*//\\s*section:\\s*(.+?)\\s*$';
-        if (key === 'regionEndRegex') return '^\\s*//\\s*endsection\\b';
+        if (key === 'regionStartRegex') return 'section:\\s*(.+?)\\s*$';
+        if (key === 'regionEndRegex') return 'endsection\\b';
         return defaultValue;
       }),
     });
@@ -429,6 +459,48 @@ describe('regions', () => {
     expect(tree[1].children[1].children.map(c => c.name)).toEqual(['setup']);
   });
 
+  test('buildTree keeps a nested class under its method even when a same-line parameter symbol precedes it', () => {
+    // Pylance reports the `name` parameter as a Variable whose range sits on the
+    // `def` line, alongside the nested `class LOL` as a sibling child of the
+    // method. The parameter must not swallow the class's deeper body lines.
+    const doc = makeDoc('python', [
+      'class UserA:',
+      '    def __init__(self, name):',
+      '        ...',
+      '        class LOL:',
+      '            pass',
+      '        # --------------------------- oooo -------------------------- #',
+      '        pass',
+    ]);
+
+    const name = new vscode.DocumentSymbol(
+      'name', '', vscode.SymbolKind.Variable,
+      new vscode.Range(1, 24, 1, 28), new vscode.Range(1, 24, 1, 28),
+    );
+    const lol = new vscode.DocumentSymbol(
+      'LOL', '', vscode.SymbolKind.Class,
+      new vscode.Range(3, 0, 4, 0), new vscode.Range(3, 14, 3, 17),
+    );
+    const init = new vscode.DocumentSymbol(
+      '__init__', '', vscode.SymbolKind.Method,
+      new vscode.Range(1, 0, 6, 0), new vscode.Range(1, 8, 1, 16),
+    );
+    const userA = new vscode.DocumentSymbol(
+      'UserA', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 6, 0), new vscode.Range(0, 0, 0, 10),
+    );
+    init.children.push(name, lol);
+    userA.children.push(init);
+
+    const tree = buildTree([userA], doc as any);
+    expect(tree[0].children.map(c => c.name)).toEqual(['__init__']);
+    // The parameter stays a leaf sibling; the class stays under the method (not
+    // absorbed into the parameter); the trailing banner is a method-level sibling.
+    expect(tree[0].children[0].children.map(c => c.name)).toEqual(['name', 'LOL', 'oooo']);
+    expect(tree[0].children[0].children[0].children).toEqual([]);
+    expect(tree[0].children[0].children[1].children.map(c => c.name)).toEqual([]);
+  });
+
   test('parseBlocks ignores unmatched region-end lines when no region is open', () => {
     const doc = makeDoc('sql', [
       '-- endregion',
@@ -443,5 +515,183 @@ describe('regions', () => {
     ]);
 
     expect(parseBlocks(doc as any)).toEqual([]);
+  });
+
+  test('buildTree ignores a lone dashes-only divider with no title', () => {
+    const doc = makeDoc('python', [
+      '# ----',
+      'x = 1',
+      'y = 2',
+    ]);
+
+    expect(buildTree([], doc as any)).toEqual([]);
+  });
+
+  test('buildTree ignores an empty three-line banner when nothing is open', () => {
+    const doc = makeDoc('python', [
+      '# ----',
+      '# ----',
+      '# ----',
+    ]);
+
+    expect(buildTree([], doc as any)).toEqual([]);
+  });
+
+  test('buildTree closes an open header when an empty three-line banner follows', () => {
+    const doc = makeDoc('python', [
+      '# ----',
+      '# Header',
+      '# ----',
+      'def a():',
+      '# ----',
+      '# ----',
+      '# ----',
+      'def b():',
+    ]);
+
+    const a = new vscode.DocumentSymbol(
+      'a', '', vscode.SymbolKind.Function,
+      new vscode.Range(3, 0, 3, 8), new vscode.Range(3, 0, 3, 3),
+    );
+    const b = new vscode.DocumentSymbol(
+      'b', '', vscode.SymbolKind.Function,
+      new vscode.Range(7, 0, 7, 8), new vscode.Range(7, 0, 7, 3),
+    );
+
+    const tree = buildTree([a, b], doc as any);
+    const header = tree.find(n => n.name === 'Header')!;
+    expect(header.children.map(c => c.name)).toEqual(['a']);
+    expect(tree.some(n => n.name === 'b')).toBe(true);
+  });
+
+  test('buildTree closes an open subheader when an empty three-line banner follows', () => {
+    const doc = makeDoc('python', [
+      '# ---- Sub ----',
+      'def a():',
+      '# ----',
+      '# ----',
+      '# ----',
+      'def b():',
+    ]);
+
+    const a = new vscode.DocumentSymbol(
+      'a', '', vscode.SymbolKind.Function,
+      new vscode.Range(1, 0, 1, 8), new vscode.Range(1, 0, 1, 3),
+    );
+    const b = new vscode.DocumentSymbol(
+      'b', '', vscode.SymbolKind.Function,
+      new vscode.Range(5, 0, 5, 8), new vscode.Range(5, 0, 5, 3),
+    );
+
+    const tree = buildTree([a, b], doc as any);
+    const sub = tree.find(n => n.name === 'Sub')!;
+    expect(sub.children.map(c => c.name)).toEqual(['a']);
+    expect(tree.some(n => n.name === 'b')).toBe(true);
+  });
+
+  test('buildTree absorbs trailing line and block-continuation comments into a brace symbol', () => {
+    const doc = makeDoc('typescript', [
+      'function m() {',
+      '  return 1;',
+      '}',
+      '  // trailing line comment',
+      '  * block comment continuation',
+    ]);
+
+    const m = new vscode.DocumentSymbol(
+      'm', '', vscode.SymbolKind.Function,
+      new vscode.Range(0, 0, 2, 1), new vscode.Range(0, 0, 0, 10),
+    );
+
+    const tree = buildTree([m], doc as any);
+    expect(tree).toHaveLength(1);
+    expect(tree[0]).toBe(m);
+  });
+
+  test('buildTree builds region containers from custom start/end regex', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return 'section:\\s*(.+?)\\s*$';
+        if (key === 'regionEndRegex') return 'endsection\\b';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('typescript', [
+      '// section: Helpers',
+      'const x = 1;',
+      '// endsection',
+    ]);
+
+    const tree = buildTree([], doc as any);
+    expect(tree).toHaveLength(1);
+    expect(tree[0].name).toBe('Helpers');
+  });
+
+  test('buildTree names an unlabeled custom region "Region"', () => {
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'regionStartRegex') return 'fold:?(.*)$';
+        return defaultValue;
+      }),
+    });
+
+    const doc = makeDoc('python', [
+      '# fold:',
+      'x = 1',
+    ]);
+
+    const tree = buildTree([], doc as any);
+    expect(tree[0].name).toBe('Region');
+  });
+
+  test('buildTree stops a nested scope when a child symbol starts past the parent body', () => {
+    const doc = makeDoc('python', [
+      'class P:',
+      'y = 1',
+      'def m():',
+      '    pass',
+    ]);
+
+    const m = new vscode.DocumentSymbol(
+      'm', '', vscode.SymbolKind.Method,
+      new vscode.Range(2, 0, 3, 8), new vscode.Range(2, 0, 2, 8),
+    );
+    const cls = new vscode.DocumentSymbol(
+      'P', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 1, 0), new vscode.Range(0, 0, 0, 7),
+    );
+    cls.children.push(m);
+
+    const tree = buildTree([cls], doc as any);
+    expect(tree[0]).toBe(cls);
+    expect(tree[0].children).toEqual([]);
+  });
+
+  test('regionName handles various inputs', () => {
+    expect(regionName('My Region')).toBe('My Region');
+    expect(regionName('My Region */')).toBe('My Region');
+    expect(regionName('My Region -->')).toBe('My Region');
+    expect(regionName('')).toBe('Region');
+    expect(regionName(undefined)).toBe('Region');
+  });
+
+  test('readCustomRegex handles missing and invalid markers', () => {
+    // Mock config to return a value
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn((_: string, defaultValue: string) => defaultValue === "" ? "my-regex" : defaultValue),
+    });
+
+    // Test valid marker
+    expect(readCustomRegex('my.setting', 'ts')).toBeInstanceOf(RegExp);
+    
+    // Test fallback marker (prefix not in COMMENT_MARKERS)
+    expect(readCustomRegex('my.setting', 'unknown-lang')).toBeInstanceOf(RegExp);
+    
+    // Test empty config
+    (vscode.workspace.getConfiguration as any).mockReturnValue({
+      get: vi.fn(() => ""),
+    });
+    expect(readCustomRegex('my.setting', 'ts')).toBeNull();
   });
 });
