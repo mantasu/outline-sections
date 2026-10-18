@@ -77,12 +77,12 @@ my_var = 0
 
 ## Settings
 
-To add custom region syntax in addition to built-in `#region`/`#endregion` detection, specify the regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example matching `note: Name` (start) and `end` (end):
+To add custom region syntax in addition to built-in `#region`/`#endregion` detection, specify the regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example matching `note: Name` (start) and `endnote` (end, optional):
 
 ```json
 {
 	"outlineSections.regionStartRegex": "note:\\s*(.+)",
-    "outlineSections.regionEndRegex": "end" // optional
+    "outlineSections.regionEndRegex": "endnote"
 }
 ```
 

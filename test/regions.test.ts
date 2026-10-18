@@ -668,6 +668,119 @@ describe('regions', () => {
     expect(tree[0].children).toEqual([]);
   });
 
+  test('buildTree does not skip lines for symbols already covered by a previous sibling', () => {
+    // Pylance reports `self.x` attributes as class children whose ranges lie
+    // inside `__init__`; they must not push the scan past the following region.
+    const doc = makeDoc('python', [
+      'class A:',
+      '    def __init__(self):',
+      '        self.x = 1',
+      '    # region R',
+      '    # endregion',
+    ]);
+
+    const init = new vscode.DocumentSymbol(
+      '__init__', '', vscode.SymbolKind.Method,
+      new vscode.Range(1, 4, 2, 18), new vscode.Range(1, 8, 1, 16),
+    );
+    const x = new vscode.DocumentSymbol(
+      'x', '', vscode.SymbolKind.Variable,
+      new vscode.Range(2, 13, 2, 14), new vscode.Range(2, 13, 2, 14),
+    );
+    const cls = new vscode.DocumentSymbol(
+      'A', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 2, 18), new vscode.Range(0, 6, 0, 7),
+    );
+    cls.children.push(init, x);
+
+    const tree = buildTree([cls], doc as any);
+    expect(tree[0]).toBe(cls);
+    expect(cls.children.map(c => c.name)).toEqual(['__init__', 'x', 'R']);
+  });
+
+  test('buildTree does not nest body comments under a parameter declared mid-line', () => {
+    // Ranges as reported by Pylance: the parameter `a` lives on the `def` line.
+    const doc = makeDoc('python', [
+      'class A:',
+      '    def __init__(self, a):',
+      '        # region A',
+      '        # endregion',
+      '        pass',
+    ]);
+
+    const a = new vscode.DocumentSymbol(
+      'a', '', vscode.SymbolKind.Variable,
+      new vscode.Range(1, 23, 1, 24), new vscode.Range(1, 23, 1, 24),
+    );
+    const init = new vscode.DocumentSymbol(
+      '__init__', '', vscode.SymbolKind.Method,
+      new vscode.Range(1, 4, 4, 12), new vscode.Range(1, 8, 1, 16),
+    );
+    init.children.push(a);
+    const cls = new vscode.DocumentSymbol(
+      'A', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 4, 12), new vscode.Range(0, 6, 0, 7),
+    );
+    cls.children.push(init);
+
+    const tree = buildTree([cls], doc as any);
+    expect(init.children.map(c => c.name)).toEqual(['a', 'A']);
+    expect(a.children).toEqual([]);
+  });
+
+  test('buildTree still absorbs trailing body comments into a decorated method', () => {
+    // Pylance starts a decorated method's range at the decorator line.
+    const doc = makeDoc('python', [
+      'class A:',
+      '    @staticmethod',
+      '    def s(b):',
+      '        pass',
+      '        # region T',
+      '        # endregion',
+    ]);
+
+    const b = new vscode.DocumentSymbol(
+      'b', '', vscode.SymbolKind.Variable,
+      new vscode.Range(2, 10, 2, 11), new vscode.Range(2, 10, 2, 11),
+    );
+    const s = new vscode.DocumentSymbol(
+      's', '', vscode.SymbolKind.Method,
+      new vscode.Range(1, 4, 3, 12), new vscode.Range(2, 8, 2, 9),
+    );
+    s.children.push(b);
+    const cls = new vscode.DocumentSymbol(
+      'A', '', vscode.SymbolKind.Class,
+      new vscode.Range(0, 0, 3, 12), new vscode.Range(0, 6, 0, 7),
+    );
+    cls.children.push(s);
+
+    buildTree([cls], doc as any);
+    expect(cls.children.map(c => c.name)).toEqual(['s']);
+    expect(s.children.map(c => c.name)).toEqual(['b', 'T']);
+    expect(b.children).toEqual([]);
+  });
+
+  test('buildTree does not nest constructor body regions under a TypeScript parameter property', () => {
+    const doc = makeDoc('typescript', [
+      'class C {',
+      '  constructor(private p: number) {',
+      '    // region R',
+      '    // endregion',
+      '  }',
+      '}',
+    ]);
+
+    const span = (s: number, sc: number, e: number, ec: number) => new vscode.Range(s, sc, e, ec);
+    const ctor = new vscode.DocumentSymbol('constructor', '', vscode.SymbolKind.Constructor, span(1, 2, 4, 3), span(1, 2, 4, 3));
+    const p = new vscode.DocumentSymbol('p', '', vscode.SymbolKind.Property, span(1, 14, 1, 31), span(1, 14, 1, 31));
+    const cls = new vscode.DocumentSymbol('C', '', vscode.SymbolKind.Class, span(0, 0, 5, 1), span(0, 0, 5, 1));
+    cls.children.push(ctor, p);
+
+    buildTree([cls], doc as any);
+    expect(ctor.children.map(c => c.name)).toEqual(['R']);
+    expect(p.children).toEqual([]);
+  });
+
   test('regionName handles various inputs', () => {
     expect(regionName('My Region')).toBe('My Region');
     expect(regionName('My Region */')).toBe('My Region');

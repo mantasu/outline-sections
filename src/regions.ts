@@ -302,14 +302,17 @@ function buildScope(
     if (symIdx < sorted.length && startOf(sorted[symIdx]) <= i) {
       const sym = sorted[symIdx++];
       const symStart = startOf(sym);
-      const symIndent = lineIndent(doc, symStart);
+      // Use the symbol's start column (or declaration indent) to preserve body comments
+      const symCol = sym.range.start.line === symStart ? sym.range.start.character : 0;
+      const symIndent = Math.max(lineIndent(doc, symStart), symCol);
       // A range end at column 0 stops before that line (exclusive); a wider end
       // includes its own line.
       const natEnd = sym.range.end.character === 0 ? sym.range.end.line - 1 : sym.range.end.line;
       const bodyEnd = extendEnd(doc, natEnd, symIndent, patterns.prefix);
       sym.children = buildScope(doc, symStart, bodyEnd, sym.children, patterns);
       attach(sym);
-      i = Math.max(bodyEnd + 1, i + 1);
+      // Ignore already-consumed symbols (e.g., `self.x`) to avoid skipping lines
+      i = Math.max(bodyEnd + 1, symStart < i ? i : i + 1);
       continue;
     }
 

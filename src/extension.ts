@@ -14,27 +14,6 @@ const CLIENTS = [PythonClient, RustClient, CClient, TypeScriptClient, JavaClient
 /*                                   Clients                                  */
 /* -------------------------------------------------------------------------- */
 
-// export async function refreshSymbols(lang: string): Promise<void> {
-//   console.log(`[refreshSymbols] called for "${lang}" at`, Date.now());
-//   const docs = vscode.workspace.textDocuments.filter(d => d.languageId === lang);
-
-//   for (const doc of docs) {
-//     const wasDirty = doc.isDirty;
-//     const editor = await vscode.window.showTextDocument(doc, { preserveFocus: true, preview: false });
-
-//     await editor.edit(editBuilder => {
-//       editBuilder.insert(new vscode.Position(0, 0), ' ');
-//     }, { undoStopBefore: false, undoStopAfter: false });
-
-//     await editor.edit(editBuilder => {
-//       editBuilder.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 1)));
-//     }, { undoStopBefore: false, undoStopAfter: false });
-
-//     if (!wasDirty) await doc.save();
-//   }
-// }
-
-
 export async function refreshSymbols(lang: string): Promise<void> {
   const prev: Promise<void> = (refreshSymbols as any)._chain ?? Promise.resolve();
 
