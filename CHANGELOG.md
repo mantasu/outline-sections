@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/mantasu/outline-sections/compare/v1.3.0...v1.3.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* skipped lines ([1cbd473](https://github.com/mantasu/outline-sections/commit/1cbd4731fcdae1d8e827de9556d5b4419adf1ec4))
+
 # [1.3.0](https://github.com/mantasu/outline-sections/compare/v1.2.0...v1.3.0) (2026-09-20)
 
 
