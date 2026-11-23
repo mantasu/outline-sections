@@ -9,6 +9,7 @@ on:
 
 permissions:
     contents: write
+    id-token: write
 
 jobs:
   release:
@@ -30,3 +31,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - if: hashFiles('*.vsix') != ''
+        run: npx ovsx publish *.vsix --trusted-publishing
