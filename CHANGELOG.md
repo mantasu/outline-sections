@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/mantasu/outline-sections/compare/v1.3.1...v1.4.0) (2026-11-27)
+
+
+### Features
+
+* any-language sections, more analysers and section highlighting ([26bf516](https://github.com/mantasu/outline-sections/commit/26bf5163c7fdb9b50baf3ea79aa124e06fc14b82)), closes [#3](https://github.com/mantasu/outline-sections/issues/3) [#3](https://github.com/mantasu/outline-sections/issues/3) [#4](https://github.com/mantasu/outline-sections/issues/4)
+
 ## [1.3.1](https://github.com/mantasu/outline-sections/compare/v1.3.0...v1.3.1) (2026-10-18)
 
 
