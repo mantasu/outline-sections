@@ -1,7 +1,8 @@
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
-import { parseBlocks, buildTree, regionName, readCustomRegex } from '../src/regions';
+import { buildTree, findMarkers } from '../src/regions';
+import { makeDoc, mockSettings, sections } from './helpers';
 
 describe('regions', () => {
   beforeEach(() => {
@@ -10,14 +11,7 @@ describe('regions', () => {
     });
   });
 
-  const makeDoc = (languageId: string, lines: string[]) => ({
-    languageId,
-    lineCount: lines.length,
-    lineAt: (index: number) => ({ text: lines[index] }),
-    getText: () => lines.join('\n'),
-  });
-
-  test('parseBlocks recognizes a header and a Python-style region', () => {
+  test('parser recognizes a header and a Python-style region', () => {
     const doc = makeDoc('python', [
       '# ----',
       '# Title',
@@ -26,13 +20,13 @@ describe('regions', () => {
       '#endregion',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['header', 'Title', 0, 4],
       ['region', 'MyRegion', 3, 4],
     ]);
   });
 
-  test('parseBlocks recognizes // region markers in C-style languages', () => {
+  test('parser recognizes // region markers in C-style languages', () => {
     const doc = makeDoc('typescript', [
       '// region Experimental flags',
       'const FEATURE_X = true;',
@@ -40,24 +34,24 @@ describe('regions', () => {
       '// endregion',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'Experimental flags', 0, 3],
     ]);
   });
 
-  test('parseBlocks recognizes // #region markers in C-style languages', () => {
+  test('parser recognizes // #region markers in C-style languages', () => {
     const doc = makeDoc('typescript', [
       '// #region String helpers',
       'function a() {}',
       '// #endregion',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'String helpers', 0, 2],
     ]);
   });
 
-  test('parseBlocks strips a trailing block-comment closer from a custom region name', () => {
+  test('parser strips a trailing block-comment closer from a custom region name', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
         if (key === 'regionStartRegex') return '>{3,}\\s*(.+)';
@@ -70,12 +64,12 @@ describe('regions', () => {
       'const x = 1;',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'My region', 0, 1],
     ]);
   });
 
-  test('parseBlocks recognizes custom region start regex from settings', () => {
+  test('parser recognizes custom region start regex from settings', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
         if (key === 'regionStartRegex') return 'fold:\\s*(.+)';
@@ -88,12 +82,12 @@ describe('regions', () => {
       'x = 1',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'Experiments', 0, 1],
     ]);
   });
 
-  test('parseBlocks treats custom region end as optional when not configured', () => {
+  test('parser treats custom region end as optional when not configured', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
         if (key === 'regionStartRegex') return 'fold:\\s*(.+)';
@@ -111,14 +105,14 @@ describe('regions', () => {
       '# ----',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'First', 0, 2],
       ['region', 'Second', 2, 4],
       ['header', 'Header', 4, 6],
     ]);
   });
 
-  test('parseBlocks recognizes custom region end regex from settings', () => {
+  test('parser recognizes custom region end regex from settings', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
         if (key === 'regionStartRegex') return 'section:\\s*(.+?)\\s*$';
@@ -133,12 +127,12 @@ describe('regions', () => {
       '// endsection',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'Helpers', 0, 2],
     ]);
   });
 
-  test('parseBlocks ignores invalid custom regex settings and keeps built-in parsing', () => {
+  test('parser ignores invalid custom regex settings and keeps built-in parsing', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue?: unknown) => {
         if (key === 'regionStartRegex') return '['; // Invalid regex: unterminated character class
@@ -151,17 +145,17 @@ describe('regions', () => {
       '#endregion',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([
+    expect(sections(doc)).toEqual([
       ['region', 'BuiltIn', 0, 1],
     ]);
   });
 
-  test('parseBlocks recognizes a one-line subheader banner', () => {
+  test('parser recognizes a one-line subheader banner', () => {
     const doc = makeDoc('python', [
       '# ---- Example ----',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([['subheader', 'Example', 0, 0]]);
+    expect(sections(doc)).toEqual([['subheader', 'Example', 0, 0]]);
   });
 
   test('buildTree nests symbols inside region containers', () => {
@@ -185,19 +179,19 @@ describe('regions', () => {
     expect(tree[0].children).toContain(symbol);
   });
 
-  test('parseBlocks auto-closes an open region when a new region starts', () => {
+  test('parser auto-closes an open region when a new region starts', () => {
     const doc = makeDoc('python', [
       '# region First',
       '# region Second',
       '#endregion',
     ]);
 
-    const blocks = parseBlocks(doc as any);
+    const blocks = sections(doc);
     expect(blocks).toContainEqual(['region', 'First', 0, 1]);
     expect(blocks).toContainEqual(['region', 'Second', 1, 2]);
   });
 
-  test('parseBlocks calls closeCurrent when a three-line banner has a blank middle line', () => {
+  test('parser calls closeCurrent when a three-line banner has a blank middle line', () => {
     // First banner (lines 0-2) opens a 'Title' header.
     // Second banner (lines 3-5) has only dashes → title is empty → closeCurrent closes 'Title'.
     const doc = makeDoc('python', [
@@ -209,7 +203,7 @@ describe('regions', () => {
       '# ----',
     ]);
 
-    const blocks = parseBlocks(doc as any);
+    const blocks = sections(doc);
     const header = blocks.find(b => b[0] === 'header');
     expect(header).toBeDefined();
     expect(header![1]).toBe('Title');
@@ -231,17 +225,17 @@ describe('regions', () => {
     expect(tree[1].name).toBe('beta');
   });
 
-  test('parseBlocks assigns the default Region name when a region has no label', () => {
+  test('parser assigns the default Region name when a region has no label', () => {
     const doc = makeDoc('python', [
       '# region',
       '#endregion',
     ]);
 
-    const blocks = parseBlocks(doc as any);
+    const blocks = sections(doc);
     expect(blocks[0][1]).toBe('Region');
   });
 
-  test('parseBlocks calls closeCurrent with no matching header/subheader on stack (idx === -1)', () => {
+  test('parser calls closeCurrent with no matching header/subheader on stack (idx === -1)', () => {
     // A blank banner when only a region (not a header/subheader) is on the stack.
     // closeCurrent finds idx === -1 and does nothing.
     const doc = makeDoc('python', [
@@ -252,7 +246,7 @@ describe('regions', () => {
       '#endregion',
     ]);
 
-    const blocks = parseBlocks(doc as any);
+    const blocks = sections(doc);
     // The region is still closed at the endregion
     expect(blocks.some(b => b[0] === 'region' && b[1] === 'open')).toBe(true);
   });
@@ -501,20 +495,20 @@ describe('regions', () => {
     expect(tree[0].children[0].children[1].children.map(c => c.name)).toEqual([]);
   });
 
-  test('parseBlocks ignores unmatched region-end lines when no region is open', () => {
+  test('parser ignores unmatched region-end lines when no region is open', () => {
     const doc = makeDoc('sql', [
       '-- endregion',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([]);
+    expect(sections(doc)).toEqual([]);
   });
 
-  test('parseBlocks ignores one-line divider banners with empty titles', () => {
+  test('parser ignores one-line divider banners with empty titles', () => {
     const doc = makeDoc('python', [
       '# ----',
     ]);
 
-    expect(parseBlocks(doc as any)).toEqual([]);
+    expect(sections(doc)).toEqual([]);
   });
 
   test('buildTree ignores a lone dashes-only divider with no title', () => {
@@ -781,30 +775,197 @@ describe('regions', () => {
     expect(p.children).toEqual([]);
   });
 
-  test('regionName handles various inputs', () => {
-    expect(regionName('My Region')).toBe('My Region');
-    expect(regionName('My Region */')).toBe('My Region');
-    expect(regionName('My Region -->')).toBe('My Region');
-    expect(regionName('')).toBe('Region');
-    expect(regionName(undefined)).toBe('Region');
+  test('region names drop trailing comment closers and default to "Region"', () => {
+    const doc = makeDoc('html', [
+      '<!-- #region Layout -->',
+      '<!-- #endregion -->',
+      '<!-- region -->',
+    ]);
+
+    expect(sections(doc)).toEqual([
+      ['region', 'Layout', 0, 1],
+      ['region', 'Region', 2, 2],
+    ]);
   });
 
-  test('readCustomRegex handles missing and invalid markers', () => {
-    // Mock config to return a value
-    (vscode.workspace.getConfiguration as any).mockReturnValue({
-      get: vi.fn((_: string, defaultValue: string) => defaultValue === "" ? "my-regex" : defaultValue),
-    });
+  test('dividers accept any common rule character', () => {
+    const doc = makeDoc('python', [
+      '# ==== Equals ====',
+      '# **** Stars ****',
+      '# >>>>>> Arrows <<<<<<',
+      '# .... Dots ....',
+      '########## Hashes ##########',
+      '# ~~~ Too short ~~~',
+    ]);
 
-    // Test valid marker
-    expect(readCustomRegex('my.setting', 'ts')).toBeInstanceOf(RegExp);
-    
-    // Test fallback marker (prefix not in COMMENT_MARKERS)
-    expect(readCustomRegex('my.setting', 'unknown-lang')).toBeInstanceOf(RegExp);
-    
-    // Test empty config
-    (vscode.workspace.getConfiguration as any).mockReturnValue({
-      get: vi.fn(() => ""),
-    });
-    expect(readCustomRegex('my.setting', 'ts')).toBeNull();
+    expect(sections(doc).map(s => s[1])).toEqual(['Equals', 'Stars', 'Arrows', 'Dots', 'Hashes']);
+  });
+
+  test('brace languages take // and /* */ dividers, including solid rules', () => {
+    const doc = makeDoc('typescript', [
+      '// ---- Line ----',
+      '/*****************/',
+      '/* Block         */',
+      '/*****************/',
+      '//////////////////',
+      '// Slashes',
+      '//////////////////',
+    ]);
+
+    expect(sections(doc)).toEqual([
+      ['subheader', 'Line', 0, 1],
+      ['header', 'Block', 1, 4],
+      ['header', 'Slashes', 4, 6],
+    ]);
+  });
+
+  test('rules made of the comment character itself are stripped cleanly', () => {
+    expect(sections(makeDoc('python', ['# #### Hash ####']))).toEqual([['subheader', 'Hash', 0, 0]]);
+    expect(sections(makeDoc('html', ['<!---------->', '<!-- Page -->', '<!---------->']))).toEqual([['header', 'Page', 0, 2]]);
+    expect(sections(makeDoc('sql', ['--------------', '-- Queries', '--------------']))).toEqual([['header', 'Queries', 0, 2]]);
+  });
+
+  test('titles keep their own punctuation', () => {
+    expect(sections(makeDoc('cpp', ['// ---- C++ <T> ----']))).toEqual([['subheader', 'C++ <T>', 0, 0]]);
+  });
+
+  test('doc-comment banners get clean titles', () => {
+    const doc = makeDoc('typescript', ['/////////////', '/// Window APIs', '/////////////', '/** ---- Docs ---- */']);
+    expect(sections(doc).map(s => s[1])).toEqual(['Window APIs', 'Docs']);
+  });
+
+  test('ASCII art, comment tables and code after a closed comment are not sections', () => {
+    const doc = makeDoc('javascript', [
+      '//            ______/\\/~    |      /',
+      '// -------- | ----------------',
+      '// negative |   0:0   |   0:1',
+      '// -------- | ------- | -------',
+      '/******/ (function(modules) { // webpackBootstrap',
+      '/******/ \t// The module cache',
+      '/******/ \tvar installedModules = {};',
+    ]);
+    expect(sections(doc)).toEqual([]);
+    expect(sections(makeDoc('python', ['# ------', '# |', '# ------']))).toEqual([]);
+  });
+
+  test('sections work in languages without a supported analyser', () => {
+    expect(sections(makeDoc('lua', ['-- region Setup', 'x = 1', '-- endregion', '-- ==== Loop ====']))).toEqual([
+      ['region', 'Setup', 0, 2],
+      ['subheader', 'Loop', 3, 3],
+    ]);
+    expect(sections(makeDoc('go', ['// #region Handlers', '// #endregion']))).toEqual([['region', 'Handlers', 0, 1]]);
+    expect(sections(makeDoc('csharp', ['#region Fields', '#endregion']))).toEqual([['region', 'Fields', 0, 1]]);
+    expect(sections(makeDoc('cpp', ['#pragma region Math', '#pragma endregion']))).toEqual([['region', 'Math', 0, 1]]);
+    expect(sections(makeDoc('latex', ['% ==== Intro ====']))).toEqual([['subheader', 'Intro', 0, 0]]);
+    expect(sections(makeDoc('somelang', ['# ---- Hash ----', '// ---- Slash ----']))).toEqual([
+      ['subheader', 'Hash', 0, 1],
+      ['subheader', 'Slash', 1, 1],
+    ]);
+  });
+
+  test('a private #region field is not a region in JavaScript/TypeScript', () => {
+    expect(sections(makeDoc('typescript', ['class A {', '  #region = 1;', '}']))).toEqual([]);
+  });
+
+  test('a code line between two rules is not a header', () => {
+    expect(sections(makeDoc('python', ['# ------', 'CONFIG = load()', '# ------']))).toEqual([]);
+  });
+
+  test('a blank line between two rules closes the open subheader', () => {
+    const doc = makeDoc('python', ['# ---- Sub ----', 'a = 1', '# ------', '', '# ------', 'b = 2']);
+    expect(sections(doc)).toEqual([['subheader', 'Sub', 0, 2]]);
+  });
+
+  test('custom divider regex adds rule styles and an invalid one is ignored', () => {
+    mockSettings({ dividerRegex: '(?:- ){3,}-' });
+    expect(sections(makeDoc('python', ['# - - - - Spaced - - - -']))).toEqual([['subheader', 'Spaced', 0, 0]]);
+
+    mockSettings({ dividerRegex: '(' });
+    expect(sections(makeDoc('python', ['# ---- Still works ----', '# - - - - Spaced - - - -']))).toEqual([
+      ['subheader', 'Still works', 0, 1],
+    ]);
+  });
+
+  test('custom region regex is anchored and named by its first matching group', () => {
+    mockSettings({ regionStartRegex: 'note:\\s*(.+)|todo:\\s*(.+)' });
+    const doc = makeDoc('python', ['# todo: Later', 'x = "todo: not a comment"']);
+    expect(sections(doc)).toEqual([['region', 'Later', 0, 1]]);
+  });
+
+  test('regions after `self.*` attributes stay in a Python class outline (#2)', () => {
+    const rule = '    # ' + '='.repeat(147);
+    const doc = makeDoc('python', [
+      'class Klasa:',
+      '    def __init__(self):',
+      '        self.testowa = {',
+      "            'pole_C': None",
+      '        }',
+      '        self.zmienna_A = None',
+      '        self.zmienna_B = 0',
+      '',
+      rule, '    # region ROZPOCZĘCIE', '', '    # endregion', rule,
+      '',
+      rule, '    # region DZIAŁANIE KOMPONENTU', '', '    # endregion', rule,
+    ]);
+
+    // Ranges as Pylance reports them: attributes are class children inside `__init__`
+    const sym = (name: string, s: number, sc: number, e: number, ec: number) =>
+      new vscode.DocumentSymbol(name, '', vscode.SymbolKind.Variable, new vscode.Range(s, sc, e, ec), new vscode.Range(s, sc, s, ec));
+    const cls = sym('Klasa', 0, 0, 18, 72);
+    cls.children.push(sym('__init__', 1, 4, 6, 26), sym('testowa', 2, 13, 2, 20), sym('zmienna_A', 5, 13, 5, 22), sym('zmienna_B', 6, 13, 6, 22));
+
+    const tree = buildTree([cls], doc);
+    expect(tree.map(n => n.name)).toEqual(['Klasa']);
+    expect(cls.children.map(n => n.name)).toEqual(['__init__', 'testowa', 'zmienna_A', 'zmienna_B', 'ROZPOCZĘCIE', 'DZIAŁANIE KOMPONENTU']);
+  });
+
+  test('a region wrapped in bare rules stays a region, not a banner title', () => {
+    const doc = makeDoc('python', ['# ======', '# region Setup', '# ======', 'x = 1', '# endregion']);
+    expect(sections(doc)).toEqual([['region', 'Setup', 1, 4]]);
+  });
+
+  test('arrow and double-line C banners need no settings (#1 follow-up)', () => {
+    const doc = makeDoc('c', [
+      '/* >>>>> LIBV4L2 USAGE >>>>>',
+      ' * multi-line comment body',
+      ' */',
+      '/* ========================================================= */',
+      '/* ========================================================= */',
+      '/* ========================================================= */',
+      '/* >>>>>>>>>>> LIB CONSTRUCTOR/DESTRUCTOR */',
+      '/* <<<<<<<<< YUV CONVERSION <<<<<<<< */',
+    ]);
+    expect(sections(doc)).toEqual([
+      ['subheader', 'LIBV4L2 USAGE', 0, 3],
+      ['subheader', 'LIB CONSTRUCTOR/DESTRUCTOR', 6, 7],
+      ['subheader', 'YUV CONVERSION', 7, 7],
+    ]);
+  });
+
+  test('findMarkers lists section starts with the lines they span', () => {
+    const doc = makeDoc('python', [
+      '# ----', '# Header', '# ----',
+      '# region R', 'x = 1', '# endregion',
+      '# ---- Sub ----',
+      '# ----', '', '# ----',
+    ]);
+    expect(findMarkers(doc)).toEqual([
+      { kind: 'header', line: 0, span: 3 },
+      { kind: 'region', line: 3, span: 1 },
+      { kind: 'region', line: 5, span: 1 },
+      { kind: 'subheader', line: 6, span: 1 },
+    ]);
+  });
+
+  test('findMarkers marks custom region starts and ends alike', () => {
+    mockSettings({ regionStartRegex: 'note:\\s*(.+)', regionEndRegex: 'endnote' });
+    const doc = makeDoc('python', ['# note: Helpers', 'x = 1', '# endnote']);
+    expect(findMarkers(doc)).toEqual([{ kind: 'region', line: 0, span: 1 }, { kind: 'region', line: 2, span: 1 }]);
+  });
+
+  test('settings are read for the document so language-specific overrides apply', () => {
+    const doc = makeDoc('lua', ['-- x']);
+    sections(doc);
+    expect(vscode.workspace.getConfiguration).toHaveBeenCalledWith('outlineSections', doc);
   });
 });

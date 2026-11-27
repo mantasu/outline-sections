@@ -20,6 +20,8 @@ export enum SymbolKind {
   Object = 17,
   Key = 18,
   Struct = 19,
+  Enum = 20,
+  Event = 21,
 }
 
 export class Position {
@@ -53,6 +55,12 @@ export class DocumentSymbol {
   ) { }
 }
 
+export class ThemeColor {
+  constructor(public id: string) { }
+}
+
+export enum OverviewRulerLane { Left = 1, Center = 2, Right = 4, Full = 7 }
+
 export class CancellationTokenSource {
   token = {};
   dispose() { }
@@ -72,6 +80,9 @@ export const window = {
       return true;
     },
   })),
+  visibleTextEditors: [] as any[],
+  createTextEditorDecorationType: vi.fn((options: any) => ({ options, dispose: vi.fn() })),
+  onDidChangeVisibleTextEditors: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
 export const workspace = {
@@ -79,6 +90,8 @@ export const workspace = {
   getConfiguration: vi.fn(() => ({
     get: vi.fn((_: string, defaultValue?: any) => defaultValue),
   })),
+  onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeConfiguration: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
 export const extensions = {

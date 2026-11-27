@@ -1,13 +1,16 @@
 import * as vscode from "vscode";
-import { PythonClient } from "./clients/py_client";
+import { PythonClient, BasedPyrightClient } from "./clients/py_client";
 import { RustClient } from "./clients/rs_client";
-import { CClient } from "./clients/c_client";
+import { CClient, ClangdClient } from "./clients/c_client";
 import { TypeScriptClient } from "./clients/ts_client";
 import { JavaClient } from "./clients/java_client";
+import { GoClient } from "./clients/go_client";
 import { buildTree } from "./regions";
+import { registerDecorations } from "./decorations";
 
 
-const CLIENTS = [PythonClient, RustClient, CClient, TypeScriptClient, JavaClient];
+// First running client of a language wins (opt-in analysers go before the defaults)
+const CLIENTS = [BasedPyrightClient, PythonClient, RustClient, ClangdClient, CClient, TypeScriptClient, JavaClient, GoClient];
 
 
 /* -------------------------------------------------------------------------- */
@@ -43,10 +46,10 @@ export async function getClient(clients: Map<string, any>, lang: string): Promis
     let client = clients.get(lang);
     if (client?.isRunning) return client;
 
-    // If no running client, find class and create new client instance
-    const ClientClass = CLIENTS.find(c => c.LANGUAGES.includes(lang));
-    client = ClientClass ? await ClientClass.create() : null;
-    clients.set(lang, client);
+    // If no running client, create one per class of the lang until one runs
+    for (const ClientClass of CLIENTS.filter(c => c.LANGUAGES.includes(lang)))
+      if ((client = await ClientClass.create().catch(() => null))?.isRunning) break;
+    clients.set(lang, client ?? null);
 
     // Refresh and return client
     if (client?.isRunning) {
@@ -79,11 +82,9 @@ export async function provideSymbols(clients: Map<string, any>, doc: vscode.Text
 }
 
 function registerProviders(ctx: vscode.ExtensionContext, clients: Map<string, any>, label: string): void {
-  for (const lang of CLIENTS.flatMap(client => client.LANGUAGES)) {
-    // VSCode DocumentSymbol provider that resolves client and builds merged symbol tree
-    const provider = { provideDocumentSymbols: (doc: vscode.TextDocument) => provideSymbols(clients, doc) };
-    ctx.subscriptions.push(vscode.languages.registerDocumentSymbolProvider({ language: lang }, provider, { label }));
-  }
+  // One provider for all languages (sections merge into analyser symbols if supported)
+  const provider = { provideDocumentSymbols: (doc: vscode.TextDocument) => provideSymbols(clients, doc) };
+  ctx.subscriptions.push(vscode.languages.registerDocumentSymbolProvider("*", provider, { label }));
 }
 
 
@@ -92,10 +93,11 @@ function registerProviders(ctx: vscode.ExtensionContext, clients: Map<string, an
 /* -------------------------------------------------------------------------- */
 
 export function activate(ctx: vscode.ExtensionContext): void {
-  // Setup clients and register providers
+  // Setup clients and register providers and section highlighting
   const label = "Comment Sections";
   const clients = new Map<string, any>();
   registerProviders(ctx, clients, label);
+  registerDecorations(ctx);
 }
 
 export function deactivate(): void {}

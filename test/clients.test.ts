@@ -26,11 +26,13 @@ vi.mock('inspector', () => ({
 
 import * as vscode from 'vscode';
 import { BaseClient } from '../src/clients/base_client';
-import { CClient } from '../src/clients/c_client';
+import { CClient, ClangdClient } from '../src/clients/c_client';
 import { TypeScriptClient } from '../src/clients/ts_client';
-import { PythonClient } from '../src/clients/py_client';
+import { PythonClient, BasedPyrightClient } from '../src/clients/py_client';
 import { RustClient } from '../src/clients/rs_client';
 import { JavaClient } from '../src/clients/java_client';
+import { GoClient } from '../src/clients/go_client';
+import * as path from 'path';
 
 /** Helper: configure the mocked inspector Session with per-method callbacks. */
 function mockInspectorPost(handlers: Record<string, any>) {
@@ -300,6 +302,18 @@ describe('clients', () => {
     expect(py.isRunning).toBe(true);
     fakeClient._state = 'stopped';
     expect(py.isRunning).toBe(false);
+  });
+
+  test('PythonClient.onClientReady waits for a still starting client before hooking it', async () => {
+    const py = new PythonClient();
+    let changed: any;
+    (py as any).client = { sendRequest: vi.fn(), state: 3, onDidChangeState: (cb: any) => { changed = cb; } };
+
+    const ready = (py as any).onClientReady();
+    expect((py as any).origSendRequest).toBeUndefined();
+    changed();
+    await ready;
+    expect((py as any).origSendRequest).toBeDefined();
   });
 
   test('RustClient.getClient activates extension and returns exports.client', async () => {
@@ -677,10 +691,10 @@ describe('clients', () => {
     const java = new JavaClient();
     (java as any).isRunningBase = true; // Mock super.isRunning
     
-    (java as any).client = { state: 2 };
+    (java as any).client = { _state: 'running' };
     expect(java.isRunning).toBe(true);
 
-    (java as any).client = { state: 1 };
+    (java as any).client = { _state: 'stopped' };
     expect(java.isRunning).toBe(false);
 
     (java as any).client = null;
@@ -877,6 +891,69 @@ describe('clients', () => {
     const client = await (java as any).getClient();
     expect(client).toEqual({ state: 2 });
     expect((globalThis as any).__cli).toBeUndefined();
+  });
+
+  test('ClangdClient.getClient returns the language client from the clangd API', async () => {
+    const languageClient = { state: 2 };
+    const ext = { isActive: false, activate: vi.fn(async () => {}), exports: { getApi: vi.fn(() => ({ languageClient })) } };
+    (vscode.extensions.getExtension as any).mockReturnValueOnce(ext);
+
+    expect(await (new ClangdClient() as any).getClient()).toBe(languageClient);
+    expect(ext.exports.getApi).toHaveBeenCalledWith(1);
+    expect(ext.activate).toHaveBeenCalled();
+    expect(ClangdClient.LANGUAGES).toContain('cpp');
+  });
+
+  test('ClangdClient.getClient returns null when clangd is absent or disabled', async () => {
+    expect(await (new ClangdClient() as any).getClient()).toBeNull();
+    (vscode.extensions.getExtension as any).mockReturnValueOnce({ isActive: true, exports: { getApi: () => ({}) } });
+    expect(await (new ClangdClient() as any).getClient()).toBeNull();
+  });
+
+  test('GoClient.getClient scans the closure of the loaded extension module `deactivate`', async () => {
+    // Any existing file can stand in for the extension bundle in the module cache
+    const main = path.join(__dirname, 'resources', 'test.py');
+    const deactivate = () => {};
+    require.cache[main] = { exports: { deactivate } } as any;
+    const ext = { isActive: false, activate: vi.fn(async () => {}), extensionPath: path.dirname(main), packageJSON: { main: 'test.py' } };
+    (vscode.extensions.getExtension as any).mockImplementation((id: string) => (id === 'golang.go' ? ext : undefined));
+
+    const go = new GoClient();
+    const scan = vi.spyOn(go as any, 'scan').mockResolvedValue('client');
+    expect(await (go as any).getClient()).toBe('client');
+    expect(scan).toHaveBeenCalledWith(deactivate, (go as any).probe);
+    expect(ext.activate).toHaveBeenCalled();
+    delete require.cache[main];
+  });
+
+  test('GoClient and BasedPyrightClient return null when no analyser extension is installed', async () => {
+    expect(await (new GoClient() as any).getClient()).toBeNull();
+    expect(await (new BasedPyrightClient() as any).getClient()).toBeNull();
+  });
+
+  test('BasedPyrightClient falls back to the next installed Pyright fork', async () => {
+    const py2 = new BasedPyrightClient();
+    const scan = vi.spyOn(py2 as any, 'scan').mockResolvedValue('client');
+    const ext = { isActive: true, extensionPath: path.join(__dirname, 'resources'), packageJSON: { main: 'test.py' } };
+    (vscode.extensions.getExtension as any).mockImplementation((id: string) => (id === 'ms-pyright.pyright' ? ext : undefined));
+
+    expect(await (py2 as any).getClient()).toBe('client');
+    expect(scan).toHaveBeenCalledWith(undefined, (py2 as any).probe); // module not in the cache
+    expect(BasedPyrightClient.LANGUAGES).toEqual(['python']);
+  });
+
+  test('Go and Pyright probes pick the language client out of closure variables', () => {
+    const run = (probe: string, self: any) => {
+      new Function(`return ${probe}`)().call(self);
+      const client = (globalThis as any).__cli;
+      delete (globalThis as any).__cli;
+      return client;
+    };
+
+    const languageClient = { clientOptions: {}, sendRequest: () => {} };
+    expect(run((new GoClient() as any).probe, { languageClient })).toBe(languageClient);
+    expect(run((new BasedPyrightClient() as any).probe, languageClient)).toBe(languageClient);
+    expect(run((new BasedPyrightClient() as any).probe, { languageClient })).toBeUndefined();
   });
 });
 

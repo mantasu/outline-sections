@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { BaseClient } from "./base_client";
+import { PythonClient } from "./py_client";
 import { toRange } from "../utils";
 
 
@@ -73,5 +74,17 @@ export class CClient extends BaseClient {
     const raw = await this.client.sendRequest(CClient.WHITELIST, req) as any;
     const sym = (raw.symbols ?? []).map(CClient.toSymbol);
     return sym;
+  }
+}
+
+
+export class ClangdClient extends PythonClient {
+  static readonly LANGUAGES = ["c", "cpp", "cuda-cpp", "objective-c", "objective-cpp"];
+
+  protected override async getClient(): Promise<any> {
+    const ext = vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd");
+    if (!ext) return null;
+    if (!ext.isActive) await ext.activate();
+    return ext.exports?.getApi(1).languageClient ?? null;
   }
 }

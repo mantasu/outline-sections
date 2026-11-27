@@ -4,12 +4,13 @@ import * as yaml from 'js-yaml';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
-import { buildTree, parseBlocks } from '../src/regions';
+import { buildTree } from '../src/regions';
+import { makeDoc, sections } from './helpers';
 
 // Data-driven: every key in expected.yaml is `<stem>_<lang>`, paired with the
 // source file `<stem>.<lang-ext>`. The symbols a language server would report
 // are recovered from the expected tree by dropping the comment sections (whose
-// names parseBlocks finds as banners in the source) and locating every
+// names `sections` finds as banners in the source) and locating every
 // remaining name in document order, so a new case is added just by dropping in
 // a fixture and an expected entry.
 type ExpectedNode = string | Record<string, ExpectedNode[]>;
@@ -24,13 +25,6 @@ const LANGS: Record<string, { id: string; ext: string; brace: boolean }> = {
   cpp: { id: 'cpp', ext: 'cpp', brace: true },
   java: { id: 'java', ext: 'java', brace: true },
 };
-
-const loadDoc = (languageId: string, lines: string[]) => ({
-  languageId,
-  lineCount: lines.length,
-  lineAt: (index: number) => ({ text: lines[index] }),
-  getText: () => lines.join('\n'),
-}) as unknown as vscode.TextDocument;
 
 const toExpected = (nodes: vscode.DocumentSymbol[]): ExpectedNode[] =>
   nodes.map(n => (n.children.length ? { [n.name]: toExpected(n.children) } : n.name));
@@ -131,8 +125,8 @@ describe('outline fixtures', () => {
     const stem = key.slice(0, key.lastIndexOf('_'));
     test(key, () => {
       const lines = fs.readFileSync(path.join(resources, `${stem}.${lang.ext}`), 'utf8').split('\n');
-      const doc = loadDoc(lang.id, lines);
-      const bannerNames = new Set(parseBlocks(doc).map(b => b[1]));
+      const doc = makeDoc(lang.id, lines);
+      const bannerNames = new Set(sections(doc).map(b => b[1]));
       const isComment = (name: string) => bannerNames.has(name);
       const symbols = deriveSymbols(expected[key], lines, lang.brace, isComment, { line: 0 });
       expect(toExpected(buildTree(symbols, doc))).toEqual(expected[key]);

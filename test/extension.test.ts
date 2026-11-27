@@ -2,7 +2,7 @@ import { vi, describe, beforeEach, test, expect, type Mock } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
 import { activate, deactivate, getClient, provideSymbols, refreshSymbols } from '../src/extension';
-import { PythonClient } from '../src/clients/py_client';
+import { PythonClient, BasedPyrightClient } from '../src/clients/py_client';
 
 describe('extension', () => {
   beforeEach(() => {
@@ -153,6 +153,23 @@ describe('extension', () => {
     const result = await getClient(clients, 'python');
     expect(result).toBe(fakeRunning);
     vi.restoreAllMocks();
+  });
+
+  test('getClient falls back to the next client class when one throws or is not running', async () => {
+    const running = { isRunning: true } as any;
+    vi.spyOn(BasedPyrightClient, 'create').mockRejectedValueOnce(new Error('boom'));
+    vi.spyOn(PythonClient, 'create').mockResolvedValueOnce(running);
+    const clients = new Map<string, any>();
+    expect(await getClient(clients, 'python')).toBe(running);
+    expect(clients.get('python')).toBe(running);
+    vi.restoreAllMocks();
+  });
+
+  test('getClient never re-opens or reverts documents while no client runs (#1)', async () => {
+    (vscode.workspace as any).textDocuments = [{ languageId: 'python', isDirty: false }];
+    expect(await getClient(new Map(), 'python')).toBeNull();
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled();
+    expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
   });
 
   test('provideDocumentSymbols callback registered by activate invokes provideSymbols', async () => {

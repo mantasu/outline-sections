@@ -1,3 +1,4 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import { BaseClient } from "./base_client";
 import { AsyncLocalStorage } from "async_hooks";
@@ -31,6 +32,8 @@ export class PythonClient extends BaseClient {
   }
 
   protected override async onClientReady(): Promise<void> {
+    // Wait up to 10s for a still starting client (e.g. clangd doesn't await its start)
+    if (this.client.state === 3) await new Promise(r => (this.client.onDidChangeState(r), setTimeout(r, 1e4)));
     this.origSendRequest = this.client.sendRequest.bind(this.client);
     this.client.sendRequest = this.sendRequest.bind(this);
     await super.onClientReady();
@@ -45,5 +48,23 @@ export class PythonClient extends BaseClient {
     const raw = await this.client.sendRequest(PythonClient.WHITELIST, req) as any;
     const sym = (raw ?? []).map(PythonClient.toSymbol);
     return sym;
+  }
+}
+
+
+export class BasedPyrightClient extends PythonClient {
+  static readonly LANGUAGES = ["python"];
+  protected readonly ids = ["detachhead.basedpyright", "anysphere.cursorpyright", "ms-pyright.pyright"];
+  protected readonly probe: string = "function(){if(this.clientOptions) globalThis.__cli=this}";
+
+  protected override async getClient(): Promise<any> {
+    // Get the first installed analyser extension and await its activation
+    const ext = this.ids.map(id => vscode.extensions.getExtension(id)).find(Boolean);
+    if (!ext) return null;
+    if (!ext.isActive) await ext.activate();
+
+    // The client is module state, so scan the closure of the module's `deactivate`
+    const main = require.cache[require.resolve(path.join(ext.extensionPath, ext.packageJSON.main))];
+    return this.scan(main?.exports.deactivate, this.probe);
   }
 }

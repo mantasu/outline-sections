@@ -16,7 +16,7 @@
 
 ## About
 
-Comment regions support for the _built-in_ [VS Code](https://code.visualstudio.com/) **Outline** view. In addition to existing elements (``class``, ``method``, etc.), this extension auto-inserts comment sections (navigable and collapsible) to the **Outline**. Supports 3 types:
+Comment regions support for the _built-in_ **Outline** view of [VS Code](https://code.visualstudio.com/) and VS Code-based editors using [Open VSX](https://open-vsx.org/extension/mantasu/outline-sections) ([Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [VSCodium](https://vscodium.com), ...). In addition to existing elements (``class``, ``method``, etc.), this extension auto-inserts comment sections (navigable and collapsible) to the **Outline**, in any language. Supports 3 types:
 
 <ul>
 <li><details><summary><i>Banners</i> (3-line comment blocks)</summary>
@@ -28,6 +28,8 @@ Comment regions support for the _built-in_ [VS Code](https://code.visualstudio.c
 my_var = 0
 ```
 
+> Or any 4+ repeating symbol from `=` `*` `#` `~` `_` `.` `+` `<` `>` `/` `%` `;`
+
 </details></li>
 <li><details><summary><i>Dividers</i> (1-line dashed comment)</summary>
 
@@ -35,6 +37,8 @@ my_var = 0
 # ------- Python Example -------- #
 my_var = 0
 ```
+
+> Or any 4+ repeating symbol from `=` `*` `#` `~` `_` `.` `+` `<` `>` `/` `%` `;`
 
 </details></li>
 <li><details><summary><a href="https://code.visualstudio.com/docs/editing/codebasics#_folding">Region Blocks</a> (official folding region)</summary>
@@ -66,35 +70,49 @@ my_var = 0
 
 <div align="center">
 
-| Supported Languages  | Supported Analyser | Region Start | Region End |
-| -------------------: | :----------------- | -----------: | :--------- |
-| [![typescript](https://img.shields.io/badge/-JavaScript-grey?logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) [![typescript](https://img.shields.io/badge/-TypeScript-grey?logo=typescript)](https://www.typescriptlang.org/) | [typescript-language-features](https://github.com/microsoft/vscode/tree/main/extensions/typescript-language-features) (built-in) | `// #region Name` | `// #endregion` |
-| [![python](https://img.shields.io/badge/-Python-grey?logo=python)](https://www.python.org/) | [vscode-pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance)  | `# region Name` | `# endregion` |
-| [![c](https://img.shields.io/badge/-C-grey?logo=c)](https://en.wikipedia.org/wiki/C_(programming_language)) [![cpp](https://img.shields.io/badge/-C++-grey?logo=cplusplus)](https://en.wikipedia.org/wiki/C%2B%2B) | [cpptools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) | `// #region Name` | `// #endregion` |
-| [![rust](https://img.shields.io/badge/-Rust-grey?logo=rust)](https://www.rust-lang.org/) | [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) | `// #region Name` | `// #endregion` |
-| [![java](https://img.shields.io/badge/-Java-grey?logo=openjdk&logoColor=orange)](https://docs.oracle.com/javase/8/docs/technotes/guides/language/index.html) | [java](https://marketplace.visualstudio.com/items?itemName=redhat.java) | `// #region Name` | `// #endregion` |
+| Supported Languages  | Supported Analyser | VS Code | Open VSX¹ |
+| -------------------: | :----------------- | :-----: | :-------: |
+| [![typescript](https://img.shields.io/badge/-JavaScript-grey?logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) [![typescript](https://img.shields.io/badge/-TypeScript-grey?logo=typescript)](https://www.typescriptlang.org/) | [typescript-language-features](https://github.com/microsoft/vscode/tree/main/extensions/typescript-language-features) (built-in) | ✅ | ✅ |
+| [![python](https://img.shields.io/badge/-Python-grey?logo=python)](https://www.python.org/) | [vscode-pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance), [basedpyright](https://marketplace.visualstudio.com/items?itemName=detachhead.basedpyright), [pyright](https://marketplace.visualstudio.com/items?itemName=ms-pyright.pyright) | ✅ | ✅ |
+| [![c](https://img.shields.io/badge/-C-grey?logo=c)](https://en.wikipedia.org/wiki/C_(programming_language)) [![cpp](https://img.shields.io/badge/-C++-grey?logo=cplusplus)](https://en.wikipedia.org/wiki/C%2B%2B) | [cpptools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools), [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd) | ✅ | ✅ |
+| [![rust](https://img.shields.io/badge/-Rust-grey?logo=rust)](https://www.rust-lang.org/) | [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) | ✅ | ✅ |
+| [![java](https://img.shields.io/badge/-Java-grey?logo=openjdk&logoColor=orange)](https://docs.oracle.com/javase/8/docs/technotes/guides/language/index.html) | [java](https://marketplace.visualstudio.com/items?itemName=redhat.java) | ✅ | ✅ |
+| [![go](https://img.shields.io/badge/-Go-grey?logo=go)](https://go.dev/) | [go](https://marketplace.visualstudio.com/items?itemName=golang.Go) | ✅ | ✅ |
 
 </div>
 
+
+* For the analysers above, their symbols are merged with comment sections within the same outline.
+* If the analyser isn't installed (or different languages), a separate _Comment Sections_ outline shows up
+* ¹[Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [VSCodium](https://vscodium.com) and other VS Code-based editors that install extensions from [Open VSX](https://open-vsx.org)
+
 ## Settings
 
-To add custom region syntax in addition to built-in `#region`/`#endregion` detection, specify the regex in [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS and enter "_outline sections_"). Example matching `note: Name` (start) and `endnote` (end, optional):
+Open [VSCode settings](https://code.visualstudio.com/docs/configure/settings) (`Ctrl+,` or `Cmd+,` for MacOS) and enter "_outline sections_".
+
+### Parsing
+
+To add custom region or divider syntax on top of the built-in one, specify the regex. Example matching `note: Name` (region start), `endnote` (region end, optional) and `- - - -` (divider rule), plus a Lua-only region start:
 
 ```json
 {
-	"outlineSections.regionStartRegex": "note:\\s*(.+)",
-    "outlineSections.regionEndRegex": "endnote"
+    "outlineSections.regionStartRegex": "note:\\s*(.+)",
+    "outlineSections.regionEndRegex": "endnote",
+    "outlineSections.dividerRegex": "(?:- ){3,}-",
+    "[lua]": { "outlineSections.regionStartRegex": "section:\\s*(.+)" }
 }
 ```
 
 <div align="center">
 
-| Pattern           | Example | Match                 |
-| ----------------- | ------- | --------------------- |
-| `note:\s*(.+)`    | Python  | `# note: Helpers`     |
-| `section:\s*(.+)` | Rust    | `// section: Helpers` |
-| `>{3,}\s*(.+)`    | Java    | `/* >>> Helpers */`   |
-| `<{6,}`           | C       | `/* <<<<<<<<<< */`    |
+| Setting            | Pattern           | Example | Match                       |
+| ------------------ | ----------------- | ------- | --------------------------- |
+| `regionStartRegex` | `note:\s*(.+)`    | Python  | `# note: Helpers`           |
+| `regionStartRegex` | `section:\s*(.+)` | Rust    | `// section: Helpers`       |
+| `regionStartRegex` | `>{3,}\s*(.+)`    | Java    | `/* >>> Helpers */`         |
+| `regionEndRegex`   | `<{6,}`           | C       | `/* <<<<<<<<<< */`          |
+| `dividerRegex`     | `(?:- ){3,}-`     | Python  | `# - - - - Helpers - - - -` |
+| `dividerRegex`     | `-{3,}`           | Go      | `// --- Helpers ---`        |
 
 </div>
 
@@ -102,9 +120,36 @@ To add custom region syntax in addition to built-in `#region`/`#endregion` detec
 <summary>Notes</summary>
 
 * No need to specify `^`, `\s*`, or comment markers (`#`, `//`, etc.) - they are automatically considered.
-* Start pattern is additive: built-in region markers still work.
-* If your start pattern has a first capture group, it becomes the region name.
+* All patterns are additive: built-in regions and rules still work.
+* A divider pattern describes only the rule; the title is whatever sits between the rules.
+* The first capture group that matches a region start becomes the region name (or, without groups, the rest of the line).
 * If no end pattern is provided, custom regions auto-close at the next region/header/subheader or end of file.
+* Every pattern setting can be [language-specific](https://code.visualstudio.com/docs/configure/settings#_language-specific-editor-settings), e.g. `"[lua]": { ... }`.
+
+</details>
+
+### Highlighting
+
+Section lines are coloured and marked on the scrollbar, and gutter bars can be switched on too. Example with the default toggles and dark-theme colours:
+
+```json
+{
+    "outlineSections.highlight.color": true,
+    "outlineSections.highlight.scrollbar": true,
+    "outlineSections.highlight.gutter": false,
+    "workbench.colorCustomizations": {
+        "outlineSections.headerForeground": "#A7D685",
+        "outlineSections.subheaderForeground": "#80BC6B",
+        "outlineSections.regionForeground": "#62A76E"
+    }
+}
+```
+
+<details>
+<summary>Minimap</summary>
+
+> [!TIP]
+> VS Code can label sections in the minimap too: turn on `editor.minimap.showRegionSectionHeaders` for regions, and `editor.minimap.showMarkSectionHeaders` with a custom `editor.minimap.markSectionHeaderRegex` (its `label` group becomes the header) for other comment styles.
 
 </details>
 

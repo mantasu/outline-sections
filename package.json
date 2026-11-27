@@ -15,7 +15,6 @@
   "categories": [
     "Programming Languages",
     "Formatters",
-    "Snippets",
     "Other"
   ],
   "keywords": [
@@ -23,21 +22,17 @@
     "outline view",
     "code outline",
     "document symbols",
-    "symbols",
     "code navigation",
-    "navigation",
     "code organization",
     "code structure",
     "sections",
     "comment sections",
     "comment banners",
+    "comment dividers",
     "region",
-    "regions",
     "folding",
     "code folding",
-    "outline sections",
     "editor productivity",
-    "workspace productivity",
     "typescript",
     "javascript",
     "python",
@@ -46,8 +41,13 @@
     "cpp",
     "c++",
     "java",
+    "go",
     "lsp",
-    "language server"
+    "language server",
+    "cursor",
+    "windsurf",
+    "vscodium",
+    "open vsx"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -61,16 +61,69 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Additional regex to detect custom region start lines. See [README](https://github.com/mantasu/outline-sections#settings) for examples.",
-          "scope": "resource"
+          "scope": "language-overridable"
         },
         "outlineSections.regionEndRegex": {
           "type": "string",
           "default": "",
           "markdownDescription": "Optional regex to detect custom region end lines. If empty, regions close on the next region/header/subheader start.",
-          "scope": "resource"
+          "scope": "language-overridable"
+        },
+        "outlineSections.dividerRegex": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Additional regex for the rule of banners and dividers (the `----` right after the comment marker). Built-in rules are 4+ repeats of `-` `=` `*` `#` `~` `_` `.` `+` `<` `>` `/` `%` `;`. See [README](https://github.com/mantasu/outline-sections#settings) for examples.",
+          "scope": "language-overridable"
+        },
+        "outlineSections.highlight.color": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Colour section lines (bold italic). Colours can be changed, see [README](https://github.com/mantasu/outline-sections#highlighting)."
+        },
+        "outlineSections.highlight.scrollbar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mark sections on the scrollbar."
+        },
+        "outlineSections.highlight.gutter": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a bar in the gutter next to sections."
         }
       }
-    }
+    },
+    "colors": [
+      {
+        "id": "outlineSections.headerForeground",
+        "description": "Colour of banner (3-line) section titles and their scrollbar ticks.",
+        "defaults": {
+          "dark": "#A7D685",
+          "light": "#265C00",
+          "highContrast": "#B9E29C",
+          "highContrastLight": "#1E4D00"
+        }
+      },
+      {
+        "id": "outlineSections.subheaderForeground",
+        "description": "Colour of divider (1-line) section titles and their scrollbar ticks.",
+        "defaults": {
+          "dark": "#80BC6B",
+          "light": "#186808",
+          "highContrast": "#93CB80",
+          "highContrastLight": "#145807"
+        }
+      },
+      {
+        "id": "outlineSections.regionForeground",
+        "description": "Colour of region titles and their scrollbar ticks.",
+        "defaults": {
+          "dark": "#62A76E",
+          "light": "#0B7927",
+          "highContrast": "#74B47E",
+          "highContrastLight": "#0B6523"
+        }
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
