@@ -1,0 +1,4 @@
+/* Coloured bold italic section lines, with a scrollbar tick per title */
+
+.label, .rule, .delimiter, .keyword { color: var(--color); font-weight: bold; font-style: italic; }
+.label { overview-ruler-color: var(--color); }

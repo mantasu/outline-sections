@@ -16,7 +16,7 @@
 
 ## About
 
-Comment regions support for the _built-in_ **Outline** view of [VS Code](https://code.visualstudio.com/) and VS Code-based editors using [Open VSX](https://open-vsx.org/extension/mantasu/outline-sections) ([Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [VSCodium](https://vscodium.com), ...). In addition to existing elements (``class``, ``method``, etc.), this extension auto-inserts comment sections (navigable and collapsible) to the **Outline**, in any language. Supports 3 types:
+Comment regions support for the _built-in_ **Outline** view of [VS Code](https://code.visualstudio.com/) and VS Code-based editors using [Open VSX](https://open-vsx.org/extension/mantasu/outline-sections) ([Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [VSCodium](https://vscodium.com), ...). In addition to existing elements (``class``, ``method``, etc.), this extension auto-inserts comment sections (navigable and collapsible) to the **Outline**, in any language. They also work with breadcrumbs and Expand/Shrink Selection (`Shift+Alt+→`/`←`). Supports 3 types:
 
 <ul>
 <li><details><summary><i>Banners</i> (3-line comment blocks)</summary>
@@ -48,6 +48,8 @@ my_var = 0
 my_var = 0
 # endregion
 ```
+
+> Regions closed by an end marker contain everything up to it (also nested regions); unclosed ones end at the next section
 
 </details></li>
 </ul>
@@ -123,25 +125,25 @@ To add custom region or divider syntax on top of the built-in one, specify the r
 * All patterns are additive: built-in regions and rules still work.
 * A divider pattern describes only the rule; the title is whatever sits between the rules.
 * The first capture group that matches a region start becomes the region name (or, without groups, the rest of the line).
-* If no end pattern is provided, custom regions auto-close at the next region/header/subheader or end of file.
+* Regions with an end marker contain everything up to it; without one (e.g. no end pattern) they auto-close at the next region/header/subheader or end of file.
 * Every pattern setting can be [language-specific](https://code.visualstudio.com/docs/configure/settings#_language-specific-editor-settings), e.g. `"[lua]": { ... }`.
 
 </details>
 
 ### Highlighting
 
-Section lines are coloured and marked on the scrollbar, and gutter bars can be switched on too. Example with the default toggles and dark-theme colours:
+Pick a [profile](https://github.com/mantasu/outline-sections/tree/main/profiles): `none` (plain comments), `subtle` (coloured titles), `classic` (coloured section lines, default), `focus` (classic plus a tint over the section the cursor is in) or `custom` (only your CSS). Your CSS rules are added on top, using classes for parts (`.label`, `.rule`, `.delimiter`, `.keyword`, `.scope`) and kinds (`.header`, `.subheader`, `.region`, `.endregion`). `--color` sets a kind's colour (`var(--color)`), and `all: unset` clears a style:
 
 ```json
 {
-    "outlineSections.highlight.color": true,
-    "outlineSections.highlight.scrollbar": true,
-    "outlineSections.highlight.gutter": false,
-    "workbench.colorCustomizations": {
-        "outlineSections.headerForeground": "#A7D685",
-        "outlineSections.subheaderForeground": "#80BC6B",
-        "outlineSections.regionForeground": "#62A76E"
-    }
+    "outlineSections.highlight.profile": "classic",
+    "outlineSections.highlight.css": [
+        ".header { --color: #A7D685 }",
+        ".label { color: var(--color); font-weight: bold }",
+        ".delimiter { all: unset }",
+        ".endregion .keyword { color: #c586c0 }",
+        ".scope { background-color: rgba(128, 128, 128, 0.08) }"
+    ]
 }
 ```
 

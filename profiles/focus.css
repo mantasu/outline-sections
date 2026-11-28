@@ -1,0 +1,5 @@
+/* Classic, plus a tint over the section the cursor is in */
+
+.label, .rule, .delimiter, .keyword { color: var(--color); font-weight: bold; font-style: italic; }
+.label { overview-ruler-color: var(--color); }
+.scope { background-color: color-mix(in srgb, var(--color) 7%, transparent); }

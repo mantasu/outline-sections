@@ -75,20 +75,32 @@
           "markdownDescription": "Additional regex for the rule of banners and dividers (the `----` right after the comment marker). Built-in rules are 4+ repeats of `-` `=` `*` `#` `~` `_` `.` `+` `<` `>` `/` `%` `;`. See [README](https://github.com/mantasu/outline-sections#settings) for examples.",
           "scope": "language-overridable"
         },
-        "outlineSections.highlight.color": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Colour section lines (bold italic). Colours can be changed, see [README](https://github.com/mantasu/outline-sections#highlighting)."
+        "outlineSections.highlight.profile": {
+          "type": "string",
+          "enum": [
+            "none",
+            "subtle",
+            "classic",
+            "focus",
+            "custom"
+          ],
+          "default": "classic",
+          "enumDescriptions": [
+            "Plain comments: nothing is highlighted.",
+            "Coloured bold titles; rules and comment markers stay as comments.",
+            "Coloured bold italic section lines.",
+            "Classic, plus a tint over the section the cursor is in.",
+            "Only your `#outlineSections.highlight.css#` rules."
+          ],
+          "markdownDescription": "How detected sections are highlighted. Every profile is a [CSS file](https://github.com/mantasu/outline-sections/tree/main/profiles); `#outlineSections.highlight.css#` rules are added on top."
         },
-        "outlineSections.highlight.scrollbar": {
-          "type": "boolean",
-          "default": true,
-          "description": "Mark sections on the scrollbar."
-        },
-        "outlineSections.highlight.gutter": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show a bar in the gutter next to sections."
+        "outlineSections.highlight.css": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "CSS rules added on top of the profile. Classes name parts (`.label`, `.rule`, `.delimiter`, `.keyword`, `.scope`) and kinds (`.header`, `.subheader`, `.region`, `.endregion`), e.g. `.endregion .keyword { color: #c586c0 }`. Set `--color` on a kind to change its colour (used as `var(--color)`), and `all: unset` to clear a style. See [README](https://github.com/mantasu/outline-sections#highlighting)."
         }
       }
     },
@@ -115,12 +127,22 @@
       },
       {
         "id": "outlineSections.regionForeground",
-        "description": "Colour of region titles and their scrollbar ticks.",
+        "description": "Colour of region start markers.",
         "defaults": {
           "dark": "#62A76E",
           "light": "#0B7927",
           "highContrast": "#74B47E",
           "highContrastLight": "#0B6523"
+        }
+      },
+      {
+        "id": "outlineSections.endregionForeground",
+        "description": "Colour of region end markers.",
+        "defaults": {
+          "dark": "#61986B",
+          "light": "#1D7132",
+          "highContrast": "#6FA878",
+          "highContrastLight": "#136A2B"
         }
       }
     ]

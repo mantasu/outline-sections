@@ -7,6 +7,7 @@ import { JavaClient } from "./clients/java_client";
 import { GoClient } from "./clients/go_client";
 import { buildTree } from "./regions";
 import { registerDecorations } from "./decorations";
+import { registerSelection } from "./selection";
 
 
 // First running client of a language wins (opt-in analysers go before the defaults)
@@ -93,11 +94,12 @@ function registerProviders(ctx: vscode.ExtensionContext, clients: Map<string, an
 /* -------------------------------------------------------------------------- */
 
 export function activate(ctx: vscode.ExtensionContext): void {
-  // Setup clients and register providers and section highlighting
+  // Setup clients and register the outline, highlighting and selection providers
   const label = "Comment Sections";
   const clients = new Map<string, any>();
   registerProviders(ctx, clients, label);
   registerDecorations(ctx);
+  registerSelection(ctx);
 }
 
 export function deactivate(): void {}

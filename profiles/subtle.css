@@ -1,0 +1,3 @@
+/* Coloured bold titles; rules and comment markers stay as comments */
+
+.label { color: var(--color); font-weight: bold; overview-ruler-color: var(--color); }

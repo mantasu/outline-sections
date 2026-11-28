@@ -32,15 +32,14 @@ export class Range {
   start: Position;
   end: Position;
 
-  constructor(startLineOrPos: number | Position, startChar?: number, endLine?: number, endChar?: number) {
-    if (startLineOrPos instanceof Position) {
-      this.start = startLineOrPos;
-      this.end = new Position(startChar ?? 0, endLine ?? 0);
-    } else {
-      this.start = new Position(startLineOrPos, startChar ?? 0);
-      this.end = new Position(endLine ?? 0, endChar ?? 0);
-    }
+  constructor(a: number | Position, b?: number | Position, c?: number, d?: number) {
+    this.start = a instanceof Position ? a : new Position(a, (b as number) ?? 0);
+    this.end = a instanceof Position ? (b as Position) : new Position(c ?? 0, d ?? 0);
   }
+}
+
+export class SelectionRange {
+  constructor(public range: Range, public parent?: SelectionRange) { }
 }
 
 export class DocumentSymbol {
@@ -68,6 +67,7 @@ export class CancellationTokenSource {
 
 export const languages = {
   registerDocumentSymbolProvider: vi.fn(() => ({ dispose: vi.fn() })),
+  registerSelectionRangeProvider: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
 export const window = {
@@ -83,6 +83,7 @@ export const window = {
   visibleTextEditors: [] as any[],
   createTextEditorDecorationType: vi.fn((options: any) => ({ options, dispose: vi.fn() })),
   onDidChangeVisibleTextEditors: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
 export const workspace = {

@@ -1,9 +1,14 @@
 import * as vscode from "vscode";
 
 export type Kind = "header" | "subheader" | "region";
-type Section = { kind: Kind; node: vscode.DocumentSymbol };
+export type Part = "label" | "rule" | "delimiter" | "keyword";
+export type Mark = { kind: Kind | "endregion"; part: Part; line: number; from: number; to: number };
 type Marker = { kind: Kind | "endregion" | "close"; title: string; span: number };
-type Patterns = { comment: RegExp; divider: RegExp; edges: RegExp; starts: RegExp[]; ends: RegExp[] };
+type Found = Marker & { line: number; explicit?: boolean; pair?: number };
+type Section = { kind: Kind; node: vscode.DocumentSymbol; explicit?: boolean };
+type Patterns = Record<"comment" | "divider" | "edges" | "words" | "rule" | "token", RegExp>
+  & Record<"starts" | "ends", RegExp[]>;
+type Context = Patterns & { at: Map<number, Found> };
 
 const ICON: Record<Kind, vscode.SymbolKind> = {
   header: vscode.SymbolKind.Enum,
@@ -11,6 +16,10 @@ const ICON: Record<Kind, vscode.SymbolKind> = {
   region: vscode.SymbolKind.Event,
 };
 const RANK: Record<Kind, number> = { header: 0, subheader: 1, region: 2 };
+
+// Section nodes of built outlines (with their kind), and each document's last outline
+const SECTIONS = new WeakMap<vscode.DocumentSymbol, Kind>();
+const TREES = new WeakMap<vscode.TextDocument, { version: number; roots: vscode.DocumentSymbol[] }>();
 
 
 /* -------------------------------------------------------------------------- */
@@ -62,6 +71,10 @@ function getPatterns(doc: vscode.TextDocument): Patterns {
     divider: new RegExp(`^\\s*${tok}(?!.*(?:\\*/|-->)\\s*\\S)\\s*${rule}`),
     // Rules before tokens, so `#### Title` loses `####` rather than a single `#`
     edges: new RegExp(`^(?:${rule}|${tok})|(?:${rule}|${tok})$`, "g"),
+    // Words of a marker line, and whether a word is a rule or a comment token (to style line parts)
+    words: new RegExp(`${rule}|${tok}|\\S+`, "g"),
+    rule: new RegExp(`^${rule}$`),
+    token: new RegExp(`^${tok}$`),
     starts: region("region", "regionStartRegex"),
     ends: region("endregion", "regionEndRegex"),
   };
@@ -83,9 +96,9 @@ function title(line: string, p: Patterns): string {
 const named = (title: string) => /[\p{L}\p{N}]/u.test(title);
 
 // Region name: first matched group, else rest of the line
-function regionName(m: RegExpExecArray): string {
+function regionName(m: RegExpExecArray, fallback = "Region"): string {
   const raw = m.slice(1).find(g => g !== undefined) ?? m.input.slice(m.index + m[0].length);
-  return raw.replace(/\s*(?:\*\/|-->)\s*$/, "").trim() || "Region";
+  return raw.replace(/\s*(?:\*\/|-->)\s*$/, "").trim() || fallback;
 }
 
 function classify(doc: vscode.TextDocument, i: number, p: Patterns): Marker | null {
@@ -93,7 +106,8 @@ function classify(doc: vscode.TextDocument, i: number, p: Patterns): Marker | nu
   const bare = (text: string) => p.divider.test(text) && !title(text, p);
   const text = line(i);
 
-  if (p.ends.some(re => re.test(text))) return { kind: "endregion", title: "", span: 1 };
+  const e = p.ends.map(re => re.exec(text)).find(Boolean);
+  if (e) return { kind: "endregion", title: regionName(e, ""), span: 1 };
   const m = p.starts.map(re => re.exec(text)).find(Boolean);
   if (m) return { kind: "region", title: regionName(m), span: 1 };
   if (!p.divider.test(text)) return null;
@@ -108,6 +122,38 @@ function classify(doc: vscode.TextDocument, i: number, p: Patterns): Marker | nu
 
   const t = title(text, p);
   return named(t) ? { kind: "subheader", title: t, span: 1 } : null;
+}
+
+// Every marker in document order; ends pair with starts like brackets, making those regions explicit
+function scan(doc: vscode.TextDocument, p: Patterns): Found[] {
+  const found: Found[] = [], open: Found[] = [];
+  for (let i = 0, m: Marker | null = null; i < doc.lineCount; i += m?.span ?? 1)
+    if ((m = classify(doc, i, p))) found.push({ ...m, line: i });
+  for (const m of found) {
+    const start = m.kind === "endregion" ? open.pop() : undefined;
+    if (m.kind === "region") open.push(m);
+    if (start) [m.pair, start.explicit] = [start.line, true];
+  }
+  return found;
+}
+
+// Splits a marker line into its label, rules, comment delimiters and other words (keywords)
+function lineParts(text: string, label: string, p: Patterns): [Part, number, number][] {
+  const at = label ? text.lastIndexOf(label) : -1, end = at + label.length;
+  const parts: [Part, number, number][] = at < 0 ? [] : [["label", at, end]];
+  for (const { 0: word, index: i = 0 } of text.matchAll(p.words)) {
+    const part: Part = p.rule.test(word) ? "rule" : p.token.test(word) ? "delimiter" : "keyword";
+    if (at < 0 || i + word.length <= at || i >= end) parts.push([part, i, i + word.length]);
+  }
+  return parts;
+}
+
+// Styled parts of every marker line (region ends included); a banner's title is on its middle line
+export function findMarks(doc: vscode.TextDocument): Mark[] {
+  const p = getPatterns(doc);
+  return scan(doc, p).filter(m => m.kind !== "close").flatMap(m => [...Array(m.span).keys()].flatMap(k =>
+    lineParts(doc.lineAt(m.line + k).text, k === m.span >> 1 ? m.title : "", p)
+      .map(([part, from, to]) => ({ kind: m.kind as Mark["kind"], part, line: m.line + k, from, to }))));
 }
 
 
@@ -132,7 +178,7 @@ function bodyEnd(doc: vscode.TextDocument, sym: vscode.DocumentSymbol, start: nu
 }
 
 // Outline of one scope: sections nest by rank, symbols attach to the innermost and recurse
-function buildScope(doc: vscode.TextDocument, from: number, to: number, symbols: vscode.DocumentSymbol[], p: Patterns) {
+function buildScope(doc: vscode.TextDocument, from: number, to: number, symbols: vscode.DocumentSymbol[], ctx: Context) {
   const roots: vscode.DocumentSymbol[] = [];
   const stack: Section[] = [];
   const attach = (node: vscode.DocumentSymbol) => (stack.at(-1)?.node.children ?? roots).push(node);
@@ -155,20 +201,22 @@ function buildScope(doc: vscode.TextDocument, from: number, to: number, symbols:
     if (k < queue.length && startOf(queue[k]) <= i) {
       const sym = queue[k++];
       const start = startOf(sym);
-      const end = bodyEnd(doc, sym, start, p);
-      sym.children = buildScope(doc, start, end, sym.children, p);
+      const end = bodyEnd(doc, sym, start, ctx);
+      sym.children = buildScope(doc, start, end, sym.children, ctx);
       attach(sym);
       // Already consumed symbols (`self.x`) mustn't skip lines
       i = Math.max(end + 1, start < i ? i : i + 1);
     } else if (i <= to) {
-      const m = classify(doc, i, p);
-      if (m?.kind === "endregion") closeFrom(stack.findIndex(s => s.kind === "region"), i);
-      else if (m?.kind === "close") closeFrom(stack.findLastIndex(s => s.kind !== "region"), i);
+      // Sections opened inside an explicit region (one with an end marker) stay in it until its end
+      const m = ctx.at.get(i), base = stack.findLastIndex(s => s.explicit) + 1;
+      if (m?.kind === "endregion") closeFrom(stack.findIndex(s => s.node.range.start.line === m.pair), i);
+      else if (m?.kind === "close") closeFrom(stack.findLastIndex((s, j) => j >= base && s.kind !== "region"), i);
       else if (m) {
         const kind = m.kind as Kind;
-        closeFrom(stack.findIndex(s => RANK[s.kind] >= RANK[kind]), i);
+        closeFrom(stack.findIndex((s, j) => j >= base && RANK[s.kind] >= RANK[kind]), i);
         const node = new vscode.DocumentSymbol(m.title, "", ICON[kind], new vscode.Range(i, 0, i, 999), new vscode.Range(i, 0, i, 0));
-        stack.push({ kind, node });
+        stack.push({ kind, node, explicit: m.explicit });
+        SECTIONS.set(node, kind);
       }
       i += m?.span ?? 1;
     } else break;
@@ -179,14 +227,22 @@ function buildScope(doc: vscode.TextDocument, from: number, to: number, symbols:
 }
 
 export function buildTree(symbols: vscode.DocumentSymbol[], doc: vscode.TextDocument): vscode.DocumentSymbol[] {
-  return buildScope(doc, 0, doc.lineCount - 1, symbols, getPatterns(doc));
+  const p = getPatterns(doc), at = new Map(scan(doc, p).map(m => [m.line, m]));
+  const roots = buildScope(doc, 0, doc.lineCount - 1, symbols, { ...p, at });
+  TREES.set(doc, { version: doc.version, roots });
+  return roots;
 }
 
-// Section markers (region ends count as regions) with the lines they span, for decorations
-export function findMarkers(doc: vscode.TextDocument): { kind: Kind; line: number; span: number }[] {
-  const p = getPatterns(doc), markers: { kind: Kind; line: number; span: number }[] = [];
-  for (let i = 0, m: Marker | null = null; i < doc.lineCount; i += m?.span ?? 1)
-    if ((m = classify(doc, i, p)) && m.kind !== "close")
-      markers.push({ kind: (m.kind === "endregion" ? "region" : m.kind) as Kind, line: i, span: m.span });
-  return markers;
+// Sections around a line, outermost first, from the last outline if the document hasn't changed since
+export function sectionsAt(doc: vscode.TextDocument, line: number): { kind: Kind; range: vscode.Range }[] {
+  const tree = TREES.get(doc), found: { kind: Kind; range: vscode.Range }[] = [];
+  let nodes = tree && tree.version === doc.version ? tree.roots : buildTree([], doc), n: vscode.DocumentSymbol | undefined;
+
+  // Follow the last node containing the line on each level (siblings only touch at boundary lines)
+  while ((n = nodes.filter(n => n.range.start.line <= line && line <= n.range.end.line).at(-1))) {
+    const kind = SECTIONS.get(n), end = n.range.end.line;
+    if (kind) found.push({ kind, range: new vscode.Range(n.range.start.line, 0, end, doc.lineAt(end).text.length) });
+    nodes = n.children;
+  }
+  return found;
 }

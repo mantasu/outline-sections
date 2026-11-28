@@ -1,7 +1,7 @@
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 vi.mock('vscode', async () => await import('./__mocks__/vscode'));
 import * as vscode from 'vscode';
-import { buildTree, findMarkers } from '../src/regions';
+import { buildTree, findMarks, sectionsAt } from '../src/regions';
 import { makeDoc, mockSettings, sections } from './helpers';
 
 describe('regions', () => {
@@ -942,25 +942,68 @@ describe('regions', () => {
     ]);
   });
 
-  test('findMarkers lists section starts with the lines they span', () => {
-    const doc = makeDoc('python', [
-      '# ----', '# Header', '# ----',
-      '# region R', 'x = 1', '# endregion',
-      '# ---- Sub ----',
-      '# ----', '', '# ----',
-    ]);
-    expect(findMarkers(doc)).toEqual([
-      { kind: 'header', line: 0, span: 3 },
-      { kind: 'region', line: 3, span: 1 },
-      { kind: 'region', line: 5, span: 1 },
-      { kind: 'subheader', line: 6, span: 1 },
+  // Outline as nested names (a node with children becomes { name: children }), and a one-line symbol
+  const tree = (nodes: vscode.DocumentSymbol[]): unknown[] => nodes.map(n => (n.children.length ? { [n.name]: tree(n.children) } : n.name));
+  const fn = (name: string, line: number, col = 0, children: vscode.DocumentSymbol[] = []) => Object.assign(
+    new vscode.DocumentSymbol(name, '', vscode.SymbolKind.Function, new vscode.Range(line, col, line, 30), new vscode.Range(line, col + 4, line, col + 9)),
+    { children });
+
+  test('findMarks splits marker lines into labels, rules, delimiters and keywords', () => {
+    const doc = makeDoc('python', ['# ---- Sub ----', '##########', '# Head', '##########', '# region R', '# endregion R']);
+    expect(findMarks(doc).map(m => `${m.kind}.${m.part}@${m.line}:${m.from}-${m.to}`)).toEqual([
+      'subheader.label@0:7-10', 'subheader.delimiter@0:0-1', 'subheader.rule@0:2-6', 'subheader.rule@0:11-15',
+      'header.rule@1:0-10', 'header.label@2:2-6', 'header.delimiter@2:0-1', 'header.rule@3:0-10',
+      'region.label@4:9-10', 'region.delimiter@4:0-1', 'region.keyword@4:2-8',
+      'endregion.label@5:12-13', 'endregion.delimiter@5:0-1', 'endregion.keyword@5:2-11',
     ]);
   });
 
-  test('findMarkers marks custom region starts and ends alike', () => {
+  test('findMarks treats custom region patterns like built-in ones', () => {
     mockSettings({ regionStartRegex: 'note:\\s*(.+)', regionEndRegex: 'endnote' });
     const doc = makeDoc('python', ['# note: Helpers', 'x = 1', '# endnote']);
-    expect(findMarkers(doc)).toEqual([{ kind: 'region', line: 0, span: 1 }, { kind: 'region', line: 2, span: 1 }]);
+    expect(findMarks(doc).map(m => `${m.kind}.${m.part}@${m.line}:${m.from}-${m.to}`)).toEqual([
+      'region.label@0:8-15', 'region.delimiter@0:0-1', 'region.keyword@0:2-7', 'endregion.delimiter@2:0-1', 'endregion.keyword@2:2-9',
+    ]);
+  });
+
+  test('a region closed by an end marker contains the sections opened inside it (#5)', () => {
+    const lines = ['# ====', '# Banner', '# ====', '# ---- Divider ----'];
+    const one = makeDoc('python', ['# region Region', ...lines, 'def func(): pass', '# endregion Region']);
+    expect(tree(buildTree([fn('func', 5)], one))).toEqual([{ Region: [{ Banner: [{ Divider: ['func'] }] }] }]);
+
+    const two = makeDoc('python', [...lines.slice(0, 3), '# region Region1', lines[3], 'def func1(): pass', '# endregion Region1',
+      '# region Region2', 'def func2(): pass', '# endregion Region2']);
+    expect(tree(buildTree([fn('func1', 5), fn('func2', 8)], two))).toEqual([{ Banner: [{ Region1: [{ Divider: ['func1'] }] }, { Region2: ['func2'] }] }]);
+
+    const three = makeDoc('python', ['# region Region1', 'def func1(): pass', '# region Region2', 'def func2(): pass', '# endregion Region2', '# endregion Region1']);
+    expect(tree(buildTree([fn('func1', 1), fn('func2', 3)], three))).toEqual([{ Region1: ['func1', { Region2: ['func2'] }] }]);
+  });
+
+  test('regions without an end marker keep auto-closing at the next section', () => {
+    const doc = makeDoc('python', ['# region A', 'def a(): pass', '# region B', 'def b(): pass', '# ---- Div ----', 'def c(): pass']);
+    expect(tree(buildTree([fn('a', 1), fn('b', 3), fn('c', 5)], doc))).toEqual([{ A: ['a'] }, { B: ['b'] }, { Div: ['c'] }]);
+  });
+
+  test('an end marker closes the region it pairs with, even when that one is in another scope', () => {
+    const doc = makeDoc('python', ['# region R', 'class K:', '    # region Inner', '    def m(self): pass', '# endregion', 'def z(): pass', '# endregion']);
+    const k = Object.assign(fn('K', 1), { range: new vscode.Range(1, 0, 3, 30), children: [fn('m', 3, 4)] });
+    expect(tree(buildTree([k, fn('z', 5)], doc))).toEqual([{ R: [{ K: [{ Inner: ['m'] }] }, 'z'] }]);
+  });
+
+  test('sectionsAt lists the sections around a line, outermost first, without boundary overlaps', () => {
+    const doc = makeDoc('python', ['# ====', '# Banner', '# ====', '# region R', '# ---- Divider ----', 'x = 1', '# endregion', '# ---- Next ----']);
+    const at = (line: number) => sectionsAt(doc, line).map(s => [s.kind, s.range.start.line, s.range.end.line]);
+    expect(at(5)).toEqual([['header', 0, 7], ['region', 3, 6], ['subheader', 4, 6]]);
+    expect(at(7)).toEqual([['header', 0, 7], ['subheader', 7, 7]]);
+    expect(sectionsAt(doc, 0)[0].range.end.character).toBe('# ---- Next ----'.length);
+  });
+
+  test('sectionsAt reuses the last outline (with symbols) until the document changes', () => {
+    const doc = Object.assign(makeDoc('python', ['class A:', '    # ---- Inner ----', '    def m(self): pass', '# ---- Outer ----']), { version: 1 });
+    buildTree([Object.assign(fn('A', 0), { range: new vscode.Range(0, 0, 2, 30), children: [fn('m', 2, 4)] })], doc);
+    expect(sectionsAt(doc, 2).map(s => s.range.end.line)).toEqual([2]);
+    (doc as any).version = 2;
+    expect(sectionsAt(doc, 2).map(s => s.range.end.line)).toEqual([3]);
   });
 
   test('settings are read for the document so language-specific overrides apply', () => {
