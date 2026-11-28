@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/mantasu/outline-sections/compare/v1.4.0...v1.5.0) (2026-11-28)
+
+
+### Features
+
+* region nesting, CSS highlighting and selection ranges (ideas by [@lethefrost](https://github.com/lethefrost) in [#5](https://github.com/mantasu/outline-sections/issues/5), [#6](https://github.com/mantasu/outline-sections/issues/6)) ([255b89b](https://github.com/mantasu/outline-sections/commit/255b89b6fb401bb4303a6c2900bf78f79c4f6ae6))
+
 # [1.4.0](https://github.com/mantasu/outline-sections/compare/v1.3.1...v1.4.0) (2026-11-27)
 
 
